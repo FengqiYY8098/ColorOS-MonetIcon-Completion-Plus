@@ -47,4 +47,6 @@
 酷安 @天伞桜 @kusban
 Gemini (AI太好用了你知道吗)
 
+**如果帮助到了你可以给我点个Star吗 ( **
+
 [🔗 模块原贴链接](https://www.coolapk.com/feed/68206546?s=NWQwNWE1NWJjM2RiNWZnNjk2NDliNGZ6a1594)
