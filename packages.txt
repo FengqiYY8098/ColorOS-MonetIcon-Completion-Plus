@@ -2,6 +2,7 @@ ai.x.grok
 cash.savo
 cn.ac.lz233.tarnhelm
 com.absinthe.libchecker
+com.ai.assistance.operit
 com.application.zaona.flowchat
 com.baiyang.eet
 com.bandbbs.ebook
@@ -16,6 +17,7 @@ com.dijia1124.plusplusbattery
 com.ejiema.ec
 com.example.piliplus
 com.follow.clash
+com.google.ai.edge.gallery
 com.google.android.apps.docs.editors.docs
 com.google.android.apps.docs.editors.sheets
 com.google.android.apps.docs.editors.slides
@@ -31,12 +33,14 @@ com.js.jshome
 com.junkfood.seal
 com.linkease.easyexplorer
 com.looptry.guiwu
+com.merxury.blocker
 com.openai.sora
 com.parallelc.micts
 com.parallelc.vistrigger
 com.pcr532.leon
 com.peace.IdPhoto
 com.poe.android
+com.reveny.nativecheck
 com.shenghuayule.dcbase
 com.sukisu.ultra
 com.syyf.quickpay
@@ -46,6 +50,7 @@ eu.darken.sdmse
 icu.freedomIntrovert.biliSendCommAntifraud
 info.muge.appshare
 lantian.nolitter
+luna.safe.luna
 mark.via
 me.mapleaf.calendar
 ml.sky233.suiteki
