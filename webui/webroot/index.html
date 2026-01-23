@@ -173,9 +173,14 @@
         }
 
         .status-icon-large {
-            font-size: 48px;
+            width: 80px;
+            height: 80px;
             margin-bottom: 16px;
-            animation: pulse 2s infinite ease-in-out;
+            fill: var(--md-sys-color-primary);
+        }
+
+        .rotate-icon {
+            animation: spin 2s linear infinite;
         }
 
         .status-title {
@@ -491,7 +496,7 @@
     <div class="container">
         <div class="header">
             <h1>图标补全Plus</h1>
-            <p>Monet Icon Completion Manager Beta v0.1</p>
+            <p>Monet Icon Completion Manager</p>
         </div>
 
         <div class="card">
@@ -499,9 +504,18 @@
             <!-- Version Card V2 -->
             <!-- Version Card V3 -->
             <div id="version-display" class="version-card">
-                <div id="v-status-icon" class="status-icon-large">☁️</div>
+                <div id="v-status-icon" class="status-icon-large rotate-icon">
+                    <svg t="1769164631946" class="icon" viewBox="0 0 1024 1024" version="1.1"
+                        xmlns="http://www.w3.org/2000/svg" p-id="5452" width="100%" height="100%">
+                        <path
+                            d="M298.666667 512a42.666667 42.666667 0 0 0-42.666667-42.666667H85.333333a42.666667 42.666667 0 0 0 0 85.333334h170.666667a42.666667 42.666667 0 0 0 42.666667-42.666667z m640-42.666667H768a42.666667 42.666667 0 0 0 0 85.333334h170.666667a42.666667 42.666667 0 0 0 0-85.333334zM512 42.666667a42.666667 42.666667 0 0 0-42.666667 42.666666v170.666667a42.666667 42.666667 0 0 0 85.333334 0V85.333333a42.666667 42.666667 0 0 0-42.666667-42.666666z m0 682.666666a42.666667 42.666667 0 0 0-42.666667 42.666667v170.666667a42.666667 42.666667 0 0 0 85.333334 0V768a42.666667 42.666667 0 0 0-42.666667-42.666667z m-211.2-62.474666L180.149333 783.52a42.666667 42.666667 0 1 0 60.330667 60.352l120.672-120.682667a42.645333 42.645333 0 0 0-0.010667-60.330666 42.656 42.656 0 0 0-60.341333 0z m422.4-301.706667l120.661333-120.661333a42.677333 42.677333 0 0 0 0.010667-60.341334h-0.010667a42.613333 42.613333 0 0 0-60.288-0.010666l-0.010666 0.010666-120.704 120.661334a42.666667 42.666667 0 0 0 60.341333 60.341333zM240.469333 180.128a42.645333 42.645333 0 0 0-60.330666-0.672 42.645333 42.645333 0 0 0-0.672 60.330667l0.672 0.672L300.8 361.152a42.677333 42.677333 0 0 0 60.341333-60.341333L240.469333 180.128zM723.2 662.858667a42.666667 42.666667 0 0 0-60.341333 60.330666l120.672 120.682667a42.624 42.624 0 0 0 60.298666 0.010667l0.021334-0.010667a42.698667 42.698667 0 0 0 0-60.352L723.2 662.858667z"
+                            p-id="5453" fill="var(--md-sys-color-primary)"></path>
+                    </svg>
+                </div>
                 <div id="v-status-text" class="status-title">正在检查更新...</div>
                 <div id="v-detail-text" class="version-info-line">当前: -- | 最新: --</div>
+                <div id="extra-info" class="version-info-line" style="font-size: 12px; margin-top: 8px; opacity: 0.8;">
+                </div>
             </div>
 
             <!-- Removed standalone extra-info div as it is now inside card -->
@@ -557,6 +571,11 @@
                 管理图标
             </button>
         </div>
+
+        <div id="debug-version"
+            style="text-align:center; font-size:10px; color:var(--md-sys-color-outline); margin-top:10px; opacity:0.5; padding-bottom: 10px;">
+            VersionCode:01231905
+        </div>
     </div>
 
     <!-- 图标管理界面 -->
@@ -570,7 +589,8 @@
             <p>Monet Icon Manager</p>
             <p
                 style="font-size:12px; color:var(--md-sys-color-error); margin-top:8px; background-color:rgba(255,180,171,0.1); padding:8px 12px; border-radius:8px;">
-                ⚠️ 此功能仅限系统和模块版本503及以上使用!用于还原应用自带的莫奈图标。
+                ⚠️ 此功能仅限系统和模块版本503及以上使用!<br>
+                用于还原应用自带的莫奈图标。
             </p>
         </div>
 
@@ -666,6 +686,10 @@
                 currentLocalVersion = "未安装";
             }
 
+            // Set Debug Version Footer
+            const debugVerEl = document.getElementById('debug-version');
+            if (debugVerEl) debugVerEl.innerText = `VersionCode: ${currentLocalVersion}`;
+
             checkUpdate();
             refreshTmpCacheSize();
         }
@@ -741,8 +765,9 @@
                 statusText.innerText = "已是最新版";
                 statusText.style.color = "var(--md-sys-color-success)";
                 detailText.innerText = `本地版本: ${currentLocalVersion}`;
-                iconEl.innerText = "✅";
-                iconEl.style.animation = "none";
+                iconEl.innerHTML = `<svg t="1769164724419" class="icon" viewBox="0 0 1098 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="7446" width="100%" height="100%"><path d="M476.808045 0.000043C213.401753 0.106685-0.031993 213.68973 0 477.074693S213.551052 953.98938 476.94668 954.021373s476.957344-213.412417 477.085315-476.808045A477.010665 477.010665 0 0 0 476.808045 0.000043z m273.761252 353.369671L441.861388 661.853674a43.1901 43.1901 0 0 1-62.023117 0L202.214984 484.251715a43.864079 43.864079 0 1 1 62.033781-62.033782l147.21959 147.21959 277.89897-276.86454a43.861946 43.861946 0 1 1 62.023117 62.033781z m0 0" p-id="7447" fill="var(--md-sys-color-success)"></path></svg>`;
+                iconEl.style.fill = "var(--md-sys-color-success)";
+                iconEl.className = "status-icon-large"; // Stop rotation
 
                 btn.innerText = "重新安装";
                 btn.className = "btn btn-tonal";
@@ -750,8 +775,12 @@
                 statusText.innerText = "发现新版本";
                 statusText.style.color = "var(--md-sys-color-primary)";
                 detailText.innerText = `可更新至 ${currentCloudVersion}`;
-                iconEl.innerText = "🚀";
-                iconEl.style.animation = "pulse 2s infinite ease-in-out";
+                iconEl.innerHTML = `<svg t="1769164687130" class="icon" viewBox="0 0 1024 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="6426" width="100%" height="100%"><path d="M740.8 430c-4.2 0-8.2 0.9-12.3 1.2-26.2-109.4-124-190.9-241.5-190.9-109.3 0-201.2 70.9-234.6 168.9-0.6 1-1.3 1.9-1.9 3-83.8 20.1-144.2 94.7-144.2 182.8 0 104.1 84.7 188.8 188.8 188.8 39.4 0 433.8 0 445.7 0 97.7 0 176.8-79.2 176.8-176.8C917.7 509.2 838.5 430 740.8 430zM611.4 601.8l-76.8 76.8c-6.2 6.2-14.4 9.4-22.6 9.4s-16.4-3.1-22.6-9.4l-76.8-76.8c-12.5-12.5-12.5-32.8 0-45.2s32.8-12.5 45.2 0l22.2 22.2L480 400c0-17.7 14.3-32 32-32 17.7 0 32 14.3 32 32l0 178.8 22.2-22.2c12.5-12.5 32.8-12.5 45.2 0S623.9 589.3 611.4 601.8z" p-id="6427" fill="var(--md-sys-color-primary)"></path></svg>`;
+                iconEl.className = "status-icon-large";
+                // Removed pulse animation here as requested (only rotation for loading mentioned, but rocket usually static or simple). 
+                // User said "Cloud -> loading & rotate", didn't specify anim for others, but let's keep them static or simple.
+                // Resetting class removes 'rotate-icon'.
+
 
                 btn.innerText = "立即更新";
                 btn.className = "btn btn-primary";
@@ -765,7 +794,10 @@
             if (parts.length >= 2) {
                 count = parseInt(parts[1], 10) || 0;
             }
-            document.getElementById('extra-info').innerText = `累计追加适配 ${count} 个图标`;
+            const extraInfo = document.getElementById('extra-info');
+            if (extraInfo) {
+                extraInfo.innerText = `累计追加适配 ${count} 个图标`;
+            }
         }
 
         function updateButtonState() {
@@ -791,73 +823,88 @@
             };
 
             try {
+                // Show progress bar
                 setIndeterminateProgress(true);
+
+                // --- Step 1: Prepare ---
                 log("=== 步骤 1: 准备环境 ===");
+                btn.innerText = "准备中...";
+                await new Promise(r => setTimeout(r, 100)); // Yield UI
 
                 await exec(`rm -rf "${CACHE_ROOT}"`);
                 await exec(`mkdir -p "${CACHE_ROOT}"`);
 
+                // --- Step 2: Download ---
                 log("=== 步骤 2: 下载文件 ===");
+                btn.innerText = "下载图标包...";
+                await new Promise(r => setTimeout(r, 50));
 
                 // 1. Download Icon Pack
-                log("正在下载图标包...");
-                const iconUrl = transUrl(downloadAssets.icon);
-                await downloadFile(iconUrl, `${CACHE_ROOT}/uxicons.zip`);
+                log("正在下载图标包 (uxicons.zip)...");
+                // Fallback to direct curl if downloadFile helper is missing or issues arise, keeping logic simple inline
+                let dlRes = await exec(`curl -L -k -o "${CACHE_ROOT}/uxicons.zip" "${transUrl(downloadAssets.icon)}"`);
+                if (dlRes.errno !== 0) throw new Error("图标包下载失败");
 
-                // 2. Download WebUI (if available)
+                // 2. Download WebUI (Conditional)
                 if (downloadAssets.webui) {
-                    log("正在下载 WebUI 更新包...");
-                    const webuiUrl = transUrl(downloadAssets.webui);
-                    try {
-                        await downloadFile(webuiUrl, `${CACHE_ROOT}/webui.zip`);
-                    } catch (e) {
-                        log("WebUI 下载失败 (非致命): " + e.message, 'warn');
+                    // Check if WebUI version changed
+                    // Version format: v0.{icon_count}.{webui_ver}
+                    const localParts = currentLocalVersion.replace(/^v/, '').split('.');
+                    const cloudParts = currentCloudVersion.replace(/^v/, '').split('.');
+
+                    const localWebUIVer = parseInt(localParts[2] || "0", 10);
+                    const cloudWebUIVer = parseInt(cloudParts[2] || "0", 10);
+
+                    if (cloudWebUIVer > localWebUIVer) {
+                        btn.innerText = "下载 WebUI...";
+                        await new Promise(r => setTimeout(r, 50));
+                        log(`发现 WebUI 更新 (v${localWebUIVer} -> v${cloudWebUIVer})，正在下载...`);
+                        let dlRes2 = await exec(`curl -L -k -o "${CACHE_ROOT}/webui.zip" "${transUrl(downloadAssets.webui)}"`);
+                        if (dlRes2.errno !== 0) log("WebUI 下载失败 (非关键)", 'warn');
+                    } else {
+                        log(`WebUI 无需更新 (v${localWebUIVer})`);
                     }
                 }
 
                 refreshTmpCacheSize();
 
-                log("=== 步骤 3: 调用安装脚本 ===");
-                btn.innerText = "正在安装...";
+                // --- Step 3: Install ---
+                log("=== 步骤 3: 安装更新 ===");
+                btn.innerText = "安装中...";
+                await new Promise(r => setTimeout(r, 50));
 
-                const scriptCmd = `sh "${UPDATE_SCRIPT}" "${currentCloudVersion}"`;
-                const scriptRes = await exec(scriptCmd);
+                // Ensure update script is executable
+                await exec(`chmod +x "${UPDATE_SCRIPT}"`);
 
-                log(scriptRes.stdout);
+                log("正在执行更新脚本...");
+                let installRes = await exec(`sh "${UPDATE_SCRIPT}" "${currentCloudVersion}"`);
 
-                if (scriptRes.errno !== 0 && !scriptRes.stdout.includes("Success")) {
-                    throw new Error("安装脚本报错，请看上方日志");
+                log(installRes.stdout);
+
+                if (installRes.errno !== 0 && !installRes.stdout.includes("Success")) {
+                    throw new Error("安装脚本报错，请检查日志");
                 }
 
-                setIndeterminateProgress(false);
-                currentLocalVersion = currentCloudVersion;
+                // --- Step 4: Finish ---
+                btn.innerText = "更新完成";
+                btn.className = "btn btn-tonal";
+                setIndeterminateProgress(false); // Hide progress
 
-                // Update Local Version Display
-                const detailText = document.getElementById('v-detail-text');
-                if (detailText) detailText.innerText = `当前版本: ${currentLocalVersion}`;
-                updateVersionUI();
-
-                refreshTmpCacheSize();
-
-                log("=== 全部完成 ===", 'success');
-                btn.innerText = "更新成功";
-                btn.style.backgroundColor = "var(--md-sys-color-success)";
-
-                // Reload page after update if webui was updated? 
-                // Or just reset button.
-                setTimeout(() => {
-                    btn.disabled = false;
-                    updateVersionUI();
-                }, 3000);
+                // 稍微延迟后重载
+                await new Promise(r => setTimeout(r, 1000));
+                // Removed alert as requested
+                location.reload();
 
             } catch (e) {
-                log(e.message, 'error');
+                log("更新流程中断: " + e.message, 'error');
                 btn.innerText = "重试";
-                btn.style.backgroundColor = "var(--md-sys-color-error)";
                 btn.disabled = false;
                 setIndeterminateProgress(false);
-                refreshTmpCacheSize();
+                alert("更新失败: " + e.message);
             }
+
+
+
         }
 
         async function downloadFile(url, dest) {
