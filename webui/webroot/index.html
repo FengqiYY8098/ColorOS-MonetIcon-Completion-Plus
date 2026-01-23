@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 
 <head>
-    <!-- ReleaseCode=3-->
+    <!-- ReleaseCode=2-->
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -182,8 +182,6 @@
             /* Fix alignment issues */
             justify-content: center;
             align-items: center;
-            margin-left: auto;
-            margin-right: auto;
         }
 
         .rotate-icon {
@@ -506,61 +504,6 @@
             opacity: 0.8;
             transform: scale(0.95);
         }
-
-        /* Floating Save Button */
-        .fab {
-            position: fixed;
-            bottom: 24px;
-            right: 24px;
-            background-color: var(--md-sys-color-primary);
-            color: var(--md-sys-color-on-primary);
-            border-radius: 16px;
-            padding: 16px 24px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-            display: flex;
-            align-items: center;
-            font-weight: 600;
-            cursor: pointer;
-            z-index: 900;
-            transition: transform 0.3s cubic-bezier(0.2, 0, 0, 1), opacity 0.3s;
-            transform: translateY(100px);
-            /* Hidden by default */
-            border: none;
-        }
-
-        .fab.visible {
-            transform: translateY(0);
-        }
-
-        .checkbox-wrapper {
-            margin-right: 12px;
-            display: flex;
-            align-items: center;
-        }
-
-        /* Custom Checkbox */
-        .custom-check {
-            width: 20px;
-            height: 20px;
-            border: 2px solid var(--md-sys-color-outline);
-            border-radius: 4px;
-            background: transparent;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .selected .custom-check {
-            background-color: var(--md-sys-color-primary);
-            border-color: var(--md-sys-color-primary);
-        }
-
-        .selected .custom-check::after {
-            content: '✔';
-            color: var(--md-sys-color-on-primary);
-            font-size: 14px;
-        }
     </style>
 </head>
 
@@ -623,7 +566,7 @@
             <div class="setting-item">
                 <div>
                     <span class="setting-label">临时缓存占用</span>
-                    <span class="setting-sub">/data/adb/uxicons_cache_tmp/</span>
+                    <span class="setting-sub">/data/adb/moneticon_tmp/</span>
                 </div>
                 <span id="tmp-cache-size" style="color:var(--md-sys-color-primary); font-weight:bold;">计算中...</span>
             </div>
@@ -687,15 +630,15 @@
                             style="width:auto; padding:10px 24px; flex:0 1 auto; margin-bottom:0;">
                             <span style="font-size:18px; line-height:1; margin-right:6px;">↻</span> 重新扫描
                         </button>
-                        <button class="btn btn-tonal" onclick="restoreAllIcons()"
-                            style="width:auto; padding:10px 24px; flex:0 1 auto; margin-bottom:0; border-color:var(--md-sys-color-error); color:var(--md-sys-color-error);">
-                            <svg t="1769174207885" class="icon" viewBox="0 0 1024 1024" version="1.1"
-                                xmlns="http://www.w3.org/2000/svg" p-id="5371" width="18" height="18"
-                                style="margin-right:6px; fill:currentColor;">
+                        <button id="btn-select-all" class="btn btn-tonal" onclick="toggleSelectAll()"
+                            style="width:auto; padding:10px 24px; flex:0 1 auto; margin-bottom:0; color:var(--md-sys-color-primary);">
+                            <svg t="1769164724419" class="icon" viewBox="0 0 1098 1024" version="1.1"
+                                xmlns="http://www.w3.org/2000/svg" p-id="7446" width="18" height="18"
+                                preserveAspectRatio="xMidYMid meet" style="margin-right:6px; fill:currentColor;">
                                 <path
-                                    d="M402.285706 786.285714l0-402.285714q0-7.972571-5.12-13.165714t-13.165714-5.12l-36.571429 0q-7.972571 0-13.165714 5.12t-5.12 13.165714l0 402.285714q0 7.972571 5.12 13.165714t13.165714 5.12l36.571429 0q7.972571 0 13.165714-5.12t5.12-13.165714zM548.57142 786.285714l0-402.285714q0-7.972571-5.12-13.165714t-13.165714-5.12l-36.571429 0q-7.972571 0-13.165714 5.12t-5.12 13.165714l0 402.285714q0 7.972571 5.12 13.165714t13.165714 5.12l36.571429 0q7.972571 0 13.165714-5.12t5.12-13.165714zM694.857135 786.285714l0-402.285714q0-7.972571-5.12-13.165714t-13.165714-5.12l-36.571429 0q-7.972571 0-13.165714 5.12t-5.12 13.165714l0 402.285714q0 7.972571 5.12 13.165714t13.165714 5.12l36.571429 0q7.972571 0 13.165714-5.12t5.12-13.165714zM383.999992 219.428571l256 0-27.428571-66.852571q-4.022857-5.12-9.728-6.290286l-181.174857 0q-5.705143 1.170286-9.728 6.290286zM914.285706 237.714286l0 36.571429q0 7.972571-5.12 13.165714t-13.165714 5.12l-54.857143 0 0 541.696q0 47.396571-26.843429 81.993143t-64.585143 34.596571l-475.428571 0q-37.741714 0-64.585143-33.426286t-26.843429-80.822857l0-544.036571-54.857143 0q-7.972571 0-13.165714-5.12t-5.12-13.165714l0-36.571429q0-7.972571 5.12-13.165714t13.165714-5.12l176.566857 0 40.009143-95.451429q8.557714-21.138286 30.866286-35.986286t45.129143-14.848l182.857143 0q22.820571 0 45.129143 14.848t30.866286 35.986286l40.009143 95.451429 176.566857 0q7.972571 0 13.165714 5.12t5.12 13.165714z"
-                                    p-id="5372"></path>
-                            </svg> 一键恢复
+                                    d="M476.808045 0.000043C213.401753 0.106685-0.031993 213.68973 0 477.074693S213.551052 953.98938 476.94668 954.021373s476.957344-213.412417 477.085315-476.808045A477.010665 477.010665 0 0 0 476.808045 0.000043z m273.761252 353.369671L441.861388 661.853674a43.1901 43.1901 0 0 1-62.023117 0L202.214984 484.251715a43.864079 43.864079 0 1 1 62.033781-62.033782l147.21959 147.21959 277.89897-276.86454a43.861946 43.861946 0 1 1 62.023117 62.033781z m0 0"
+                                    p-id="7447"></path>
+                            </svg> <span id="text-select-all">全选</span>
                         </button>
                     </div>
                 </div>
@@ -703,27 +646,41 @@
                 <div id="app-list"></div>
             </div>
         </div>
+
+        <!-- FAB Save Button -->
+        <button id="fab-save" onclick="savePkgList()"
+            style="position:fixed; bottom:30px; right:30px; width:56px; height:56px; border-radius:16px; background:var(--md-sys-color-primary); color:var(--md-sys-color-on-primary); border:none; box-shadow:0 4px 8px rgba(0,0,0,0.3); display:none; align-items:center; justify-content:center; z-index:100; transition:all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);">
+            <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                <path
+                    d="M17 3H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V7l-4-4zm-5 16c-1.66 0-3-1.34-3-3s1.34-3 3-3 3 1.34 3 3-1.34 3-3 3zm3-10H5V5h10v4z" />
+            </svg>
+        </button>
+    </div>
+
+    <div id="app-list"></div>
+    </div>
+    </div>
     </div>
 
     <script>
         // --- 核心配置 ---
         const MOD_ROOT = "/data/adb/modules/ThemedIconCompletion";
         const WEB_ROOT = `${MOD_ROOT}/webroot`;
-        const CACHE_ROOT = "/data/adb/uxicons_cache_tmp";
+        const CACHE_ROOT = "/data/adb/moneticon_tmp";
         const UPDATE_SCRIPT = `${MOD_ROOT}/update.sh`;
+        const PKGLIST_FILE = `${WEB_ROOT}/pkglist`;
         const VERSION_FILE = `${WEB_ROOT}/version`;
+
+
 
         // 【修正】这里的变量虽然 JS 实际上不直接用它来移动文件了，但保持与脚本一致是个好习惯
         const TARGET_B = `${MOD_ROOT}/my_product/media/theme/uxicons/hdpi/`;
-        const PKG_LIST_FILE = "/data/adb/monet_pkglist";
 
         let currentCloudVersion = null;
         let currentLocalVersion = null;
-        let downloadAssets = {};
-        let currentPkgList = new Set(); // Store checked packages
-        let scannedApps = []; // Store scan results
-
-
+        let downloadAssets = {}; // 存储 url
+        let loadedPkgList = new Set(); // Stores package names
+        let scannedApps = []; // Stores scanned apps
 
         // --- 工具 ---
 
@@ -1052,10 +1009,88 @@
         let scanTimer = null;
         let isScanning = false;
 
+        async function loadPkgList() {
+            loadedPkgList.clear();
+            try {
+                const res = await exec(`cat "${PKGLIST_FILE}"`);
+                if (res.errno === 0 && res.stdout) {
+                    const lines = res.stdout.split('\n');
+                    lines.forEach(line => {
+                        const pkg = line.trim();
+                        if (pkg) loadedPkgList.add(pkg);
+                    });
+                }
+            } catch (e) { console.log("Load pkglist error", e); }
+        }
+
+        async function savePkgList() {
+            const fab = document.getElementById('fab-save');
+            const originalTransform = fab.style.transform;
+            fab.style.transform = "scale(0.8)"; // Click effect
+
+            try {
+                let content = "";
+                loadedPkgList.forEach(pkg => {
+                    content += pkg + "\n";
+                });
+
+                // Write to file
+                await exec(`echo "${content}" > "${PKGLIST_FILE}"`);
+
+                if (typeof ksu !== 'undefined' && ksu.toast) ksu.toast("保存成功");
+
+                // Hide FAB after save to indicate "synced" status
+                setTimeout(() => {
+                    fab.style.display = 'none';
+                }, 300);
+            } catch (e) {
+                alert("保存失败: " + e.message);
+            } finally {
+                setTimeout(() => {
+                    fab.style.transform = originalTransform;
+                }, 150);
+            }
+        }
+
+        function onSelectionChange() {
+            const fab = document.getElementById('fab-save');
+            // Allow user to save whenever they want? 
+            // Or only if dirty? 
+            // User requirement: "勾选任意应用后...出现保存按钮"
+            // "用户取消勾选保存后将对应的包名从文件中移除" -> implies we save the *current state*.
+            // Simple logic: Always show FAB if we are in manager view (or maybe when selection is valid).
+            // But better: Show FAB when user interactions happen.
+            // Let's simple show it permanently once loaded?
+            // "勾选任意应用后右下角出现保存按钮" -> implies it appears on interaction.
+            // Let's show it if there is *any* change? Or just show it always when in list?
+            // "勾选任意应用后..." means "After checking *any* app" (could be count > 0?)
+            // But if I uncheck all, I should also be able to save (empty file).
+            // So: Show FAB whenever a check/uncheck happens.
+            fab.style.display = 'flex';
+        }
+
+        function onAppCheck(pkg, checked) {
+            if (checked) {
+                loadedPkgList.add(pkg);
+            } else {
+                loadedPkgList.delete(pkg);
+            }
+            onSelectionChange();
+
+            // Check if all checked to update "Select All" text
+            // Optimization: Don't strict check every time if list is huge
+        }
+
         async function openIconManager() {
             // 切换到图标管理视图
             document.querySelector('.container').style.display = 'none';
             document.getElementById('icon-manager-view').style.display = 'block';
+
+            // Hide FAB initially until interaction or load?
+            // User: "勾选任意应用后...出现"
+            // If we load existing checks, should we show FAB? Maybe not, until user changes something.
+            // But let's verify. I'll hide it initially.
+            document.getElementById('fab-save').style.display = 'none';
 
             // 重置 UI
             const statusEl = document.getElementById('scan-status');
@@ -1072,6 +1107,9 @@
             `;
             document.getElementById('app-list-container').style.display = 'none';
 
+            // Load pkglist BEFORE scan
+            await loadPkgList();
+
             // 开始后台扫描
             try {
                 // 赋予权限并创建目录
@@ -1083,7 +1121,6 @@
                 await exec(`echo "准备就绪" > "${SCAN_LOG}"`);
 
                 // 启动后台进程 (nohup ... &)
-                // 注意：WebUI 环境下 nohup 可能需要完整路径或特殊处理，这里尝试直接后台运行
                 const scanCmd = `nohup sh "${SCAN_SCRIPT}" > /dev/null 2>&1 &`;
                 await exec(scanCmd);
 
@@ -1169,179 +1206,159 @@
         }
 
         // 替代原来的 displayAppList，改名为 loadScanResults 并调用 displayAppList
-        // New Logic for Icon Manager
+        async function loadScanResults() {
+            // 读取扫描结果，把换行转为逗号
+            const appsRes = await exec(`cat "${MONET_APPS_FILE}" | tr '\\n' ','`);
 
-        async function openIconManager() {
-            document.querySelector('.container').style.display = 'none';
-            document.getElementById('icon-manager-view').style.display = 'block';
-
-            // Show loading
-            document.getElementById('scan-status').style.display = 'block';
-            document.getElementById('app-list-container').style.display = 'none';
-
-            // Start scan script
-            let cmd = `sh "${MOD_ROOT}/scan_monet.sh" > "${SCAN_LOG}" 2>&1 &`;
-            await exec(cmd);
-
-            isScanning = true;
-            if (scanTimer) clearInterval(scanTimer);
-
-            // Load saved selection first
-            await loadPkgList();
-
-            scanTimer = setInterval(async () => {
-                if (!isScanning) return;
-                try {
-                    const res = await exec(`tail -n 1 "${SCAN_LOG}"`);
-                    if (res.errno === 0) {
-                        const line = res.stdout.trim();
-                        if (line === "DONE") {
-                            clearInterval(scanTimer);
-                            isScanning = false;
-                            finishScan();
-                        }
-                    }
-                } catch (e) { }
-            }, 500);
-        }
-
-        async function finishScan() {
-            // Read result file
-            const res = await exec(`cat "${MONET_APPS_FILE}"`);
-            scannedApps = [];
-
-            if (res.errno === 0 && res.stdout) {
-                // Format: Label|Pkg|IconBase64
-                // Need to parse line by line
-                const lines = res.stdout.split('\n');
-                for (const line of lines) {
-                    if (!line.trim()) continue;
-                    const parts = line.split('|');
-                    if (parts.length >= 3) {
-                        scannedApps.push({
-                            label: parts[0],
-                            pkg: parts[1],
-                            icon: parts[2]
-                        });
-                    }
-                }
-            }
-
-            document.getElementById('scan-status').style.display = 'none';
-            const listContainer = document.getElementById('app-list-container');
-            listContainer.style.display = 'block';
-            document.getElementById('app-count').innerText = scannedApps.length;
-
-            renderAppList();
-        }
-
-        async function loadPkgList() {
-            const res = await exec(`cat "${PKG_LIST_FILE}"`);
-            currentPkgList.clear();
-            if (res.errno === 0 && res.stdout) {
-                const lines = res.stdout.split('\n');
-                lines.forEach(line => {
-                    const trimmed = line.trim();
-                    if (trimmed) currentPkgList.add(trimmed);
-                });
-            }
-        }
-
-        async function savePkgList() {
-            const fab = document.getElementById('save-fab');
-
-            log("正在保存配置...", 'info');
-
-            // Clear file
-            await exec(`echo -n "" > "${PKG_LIST_FILE}"`);
-
-            // Write each package
-            for (const pkg of currentPkgList) {
-                await exec(`echo "${pkg}" >> "${PKG_LIST_FILE}"`);
-            }
-
-            fab.classList.remove('visible');
-            setTimeout(() => {
-                fab.style.transform = 'translateY(100px)';
-            }, 300);
-
-            log("配置已保存", 'success');
-        }
-
-        function renderAppList() {
-            const container = document.getElementById('app-list');
-            container.innerHTML = "";
-
-            scannedApps.forEach(app => {
-                const isChecked = currentPkgList.has(app.pkg);
-                const item = document.createElement('div');
-                item.className = `app-item ${isChecked ? 'selected' : ''}`;
-                // Clicking anywhere toggles selection
-                item.onclick = (e) => toggleAppSelection(app.pkg, item);
-
-                const iconBase = `data:image/png;base64,${app.icon}`;
-
-                item.innerHTML = `
-                    <div class="checkbox-wrapper">
-                        <div class="custom-check"></div>
-                    </div>
-                    <div class="app-icon">
-                        <img src="${iconBase}">
-                    </div>
-                    <div class="app-info">
-                        <div class="app-name">${app.label}</div>
-                        <div class="app-package">${app.pkg}</div>
-                    </div>
+            // 即使没有结果，如果文件存在也作为结果处理（可能是真的没有支持的应用）
+            if (appsRes.errno !== 0) {
+                document.getElementById('scan-status').innerHTML = `
+                    <p>读取结果失败</p>
+                    <button class="btn btn-tonal" onclick="openIconManager()">重试</button>
                 `;
-                container.appendChild(item);
-            });
-            updateSelectAllButtonState();
-        }
-
-        function toggleAppSelection(pkg, itemElement) {
-            if (currentPkgList.has(pkg)) {
-                currentPkgList.delete(pkg);
-                itemElement.classList.remove('selected');
-            } else {
-                currentPkgList.add(pkg);
-                itemElement.classList.add('selected');
+                return;
             }
-            showSaveFab();
-            updateSelectAllButtonState();
-        }
 
-        function showSaveFab() {
-            const fab = document.getElementById('save-fab');
-            fab.style.display = 'flex';
-            void fab.offsetWidth; // trigger reflow
-            fab.classList.add('visible');
-        }
+            // 解析逻辑：用逗号分割
+            monetApps = appsRes.stdout.split(',').map(line => line.trim()).filter(line => line.length > 0);
 
-        function updateSelectAllButtonState() {
-            const allSelected = scannedApps.length > 0 && scannedApps.every(app => currentPkgList.has(app.pkg));
-            const btnText = document.getElementById('toggle-all-text');
-            if (btnText) {
-                btnText.innerText = allSelected ? "取消全选" : "全选";
-            }
+            // Sync loaded selection with scan results (optional: remove stale entries?)
+            // We keep stale entries in loadedPkgList in case user wants to persist them even if not found?
+            // "每次完成扫描后将结果和pkglist文件做对比,将包含的应用给默认勾选上" -> This is already handled by loadedPkgList logic in displayAppList.
+
+            displayAppList();
         }
 
         function toggleSelectAll() {
-            const allSelected = scannedApps.length > 0 && scannedApps.every(app => currentPkgList.has(app.pkg));
+            const btnText = document.getElementById('text-select-all');
+            const isSelectAll = btnText.innerText === "全选";
 
-            if (allSelected) {
-                scannedApps.forEach(app => currentPkgList.delete(app.pkg));
+            if (isSelectAll) {
+                // Select all visible
+                monetApps.forEach(pkg => loadedPkgList.add(pkg));
+                btnText.innerText = "取消全选";
             } else {
-                scannedApps.forEach(app => currentPkgList.add(app.pkg));
+                // Unselect all visible
+                monetApps.forEach(pkg => loadedPkgList.delete(pkg));
+                btnText.innerText = "全选";
             }
-            renderAppList();
-            showSaveFab();
+
+            // Update UI checkboxes
+            monetApps.forEach(pkg => {
+                const safeId = pkg.replace(/\./g, '_');
+                const cb = document.getElementById(`cb-${safeId}`);
+                if (cb) cb.checked = isSelectAll;
+            });
+
+            onSelectionChange();
         }
 
+        async function displayAppList() {
+            document.getElementById('scan-status').style.display = 'none';
+            document.getElementById('app-list-container').style.display = 'block';
+            document.getElementById('app-count').innerText = monetApps.length;
 
-        function restoreSingleIcon(pkg, appName) {
-            // Deprecated in favor of checkbox logic
+            const appListDiv = document.getElementById('app-list');
+            appListDiv.innerHTML = '';
+
+            if (monetApps.length === 0) {
+                appListDiv.innerHTML = `
+                    <div style="text-align:center; padding:40px 0; color:var(--md-sys-color-outline);">
+                        未找到支持的应用
+                    </div>
+                 `;
+                return;
+            }
+
+            monetApps.forEach(pkg => {
+                const isChecked = loadedPkgList.has(pkg);
+                const safeId = pkg.replace(/\./g, '_');
+
+                const appItem = document.createElement('div');
+                appItem.className = 'app-item';
+                appItem.id = `item-${safeId}`;
+                // Toggle on item click
+                appItem.onclick = (e) => {
+                    // Avoid double toggle if clicking checkbox directly
+                    if (e.target.tagName !== 'INPUT') {
+                        const cb = document.getElementById(`cb-${safeId}`);
+                        if (cb) {
+                            cb.checked = !cb.checked;
+                            onAppCheck(pkg, cb.checked);
+                        }
+                    }
+                };
+
+                appItem.innerHTML = `
+                    <div style="margin-right:16px; display:flex; align-items:center;">
+                         <input type="checkbox" id="cb-${safeId}" 
+                             style="width:20px; height:20px; accent-color:var(--md-sys-color-primary);"
+                             ${isChecked ? 'checked' : ''}
+                             onchange="onAppCheck('${pkg}', this.checked)">
+                    </div>
+                    <div class="app-info">
+                        <div class="app-name" id="name-${safeId}" style="font-size:16px;">加载中...</div>
+                        <div class="app-package" style="margin-top:2px;">${pkg}</div>
+                    </div>
+                `;
+                appListDiv.appendChild(appItem);
+            });
+
+            // Update "Select All" button state based on current selection
+            const allSelected = monetApps.length > 0 && monetApps.every(pkg => loadedPkgList.has(pkg));
+            document.getElementById('text-select-all').innerText = allSelected ? "取消全选" : "全选";
+
+            // 后台异步获取应用名称
+            updateAppLabels();
         }
 
+        async function updateAppLabels() {
+            for (const pkg of monetApps) {
+                let appName = pkg;
+                try {
+                    // 1. 尝试 $packageManager
+                    if (typeof $packageManager !== 'undefined') {
+                        const appInfo = $packageManager.getApplicationInfo(pkg, 0, 0);
+                        if (appInfo) appName = appInfo.getLabel().toString();
+                    }
+                    // 2. 尝试 KSU API
+                    else if (typeof ksu !== 'undefined' && ksu.getPackagesInfo) {
+                        const info = await ksu.getPackagesInfo(pkg);
+                        if (info && info.appLabel) appName = info.appLabel;
+                    }
+                } catch (e) { }
+
+                // Update DOM
+                const safeId = pkg.replace(/\./g, '_');
+                const nameEl = document.getElementById(`name-${safeId}`);
+                // Removed onclick update as item onclick is now handled in displayAppList
+                if (nameEl) nameEl.innerText = appName;
+
+                continue;
+
+                // (Old dumpsys logic skipped for brevity, maintained from original structure if needed but assuming KSU/WebView)
+            }
+        }
+
+        async function backToMain() {
+            // 停止扫描计时器
+            isScanning = false;
+            if (scanTimer) clearInterval(scanTimer);
+
+            // 终止可能存在的扫描进程
+            await exec(`pkill -f "scan_monet.sh"`);
+
+            // 删除结果文件（响应用户需求：如果用户点了返回...删除moneticon_apps文件）
+            await exec(`rm -f "${MONET_APPS_FILE}"`);
+
+            // Hide FAB
+            document.getElementById('fab-save').style.display = 'none';
+
+            document.getElementById('icon-manager-view').style.display = 'none';
+            document.querySelector('.container').style.display = 'block';
+        }
+
+        // Remove restored functions as they are replaced by selection logic
 
         function showDialog(title, content, showCancel, onConfirm) {
             const overlay = document.createElement('div');

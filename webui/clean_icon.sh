@@ -1,7 +1,7 @@
 #!/system/bin/sh
 
 MOD_ROOT="/data/adb/modules/ThemedIconCompletion"
-CACHE_ROOT="/data/adb/uxicons_cache_tmp"
+CACHE_ROOT="/data/adb/moneticon_tmp"
 TARGET_PATH1="${MOD_ROOT}/my_product/media/theme/uxicons/hdpi/"
 TARGET_PATH2="${MOD_ROOT}/data/oplus/uxicons/"
 DELETE_LIST="${CACHE_ROOT}/delete_packages.txt"

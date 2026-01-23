@@ -1,8 +1,8 @@
 #!/system/bin/sh
 # 优化版扫描脚本: 使用 pm list -f 减少 IPC 调用
 
-LOG_FILE="/data/adb/uxicons_cache_tmp/scan.log"
-RESULT_FILE="/data/adb/uxicons_cache_tmp/moneticon_apps"
+LOG_FILE="/data/adb/moneticon_tmp/scan.log"
+RESULT_FILE="/data/adb/moneticon_tmp/moneticon_apps"
 
 echo "正在准备扫描..." > "$LOG_FILE"
 echo "" > "$RESULT_FILE"

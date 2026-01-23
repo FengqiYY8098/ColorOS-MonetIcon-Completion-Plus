@@ -6,7 +6,7 @@ WEB_ROOT="$MOD_DIR/webroot"
 VERSION_FILE="$WEB_ROOT/version"
 
 # 临时缓存目录
-CACHE_DIR="/data/adb/uxicons_cache_tmp"
+CACHE_DIR="/data/adb/moneticon_tmp"
 
 # 下载的 zip 路径
 ZIP_FILE="$CACHE_DIR/uxicons.zip"
@@ -61,30 +61,24 @@ mkdir -p "$TARGET_B"
 cp -rf "$CACHE_DIR/uxicons/"* "$TARGET_A"
 cp -rf "$CACHE_DIR/uxicons/"* "$TARGET_B"
 
-echo ">>> 检查图标屏蔽列表..."
-PKG_LIST="/data/adb/monet_pkglist"
-if [ -f "$PKG_LIST" ]; then
-    count=0
-    # Read line by line; handle missing newline at EOF
-    while IFS= read -r pkg || [ -n "$pkg" ]; do
-        # Trim whitespace
-        pkg=$(echo "$pkg" | xargs)
-        if [ ! -z "$pkg" ]; then
-            # Delete from Target A
-            rm -rf "$TARGET_A/$pkg"
-            # Delete from Target B
-            rm -rf "$TARGET_B/$pkg"
-            count=$((count + 1))
-        fi
-    done < "$PKG_LIST"
-    echo "已清理 $count 个被屏蔽的图标"
-else
-    echo "无屏蔽列表 (pkglist)"
-fi
-
 echo ">>> 更新版本信息..."
 if [ ! -z "$NEW_VERSION" ]; then
     echo "$NEW_VERSION" > "$VERSION_FILE"
+fi
+
+# === 新增: 根据 pkglist 还原图标 ===
+PKGLIST="$WEB_ROOT/pkglist"
+if [ -f "$PKGLIST" ]; then
+    echo ">>> 检测到 pkglist，正在执行定向还原..."
+    while IFS= read -r pkg || [ -n "$pkg" ]; do
+        # 跳过空行
+        [ -z "$pkg" ] && continue
+        
+        echo "   正在还原: $pkg"
+        # 删除对应图标文件夹 (恢复为系统默认)
+        rm -rf "$TARGET_A/$pkg"
+        rm -rf "$TARGET_B/$pkg"
+    done < "$PKGLIST"
 fi
 
 echo ">>> 清理临时目录..."
