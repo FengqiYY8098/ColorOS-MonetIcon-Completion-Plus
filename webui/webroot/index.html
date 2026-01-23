@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 
 <head>
-    <!-- ReleaseCode=1-->
+    <!-- ReleaseCode=2-->
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -178,6 +178,10 @@
             height: 80px;
             margin-bottom: 16px;
             fill: var(--md-sys-color-primary);
+            display: flex;
+            /* Fix alignment issues */
+            justify-content: center;
+            align-items: center;
         }
 
         .rotate-icon {
@@ -315,17 +319,28 @@
         }
 
         .log-box {
-            background-color: #000;
+            background-color: var(--md-sys-color-surface-variant);
+            color: var(--md-sys-color-on-surface-variant);
+            font-family: 'Roboto', sans-serif;
+            /* MD3 Font */
             border-radius: 12px;
-            padding: 12px;
-            height: 120px;
+            padding: 16px;
+            height: 140px;
             overflow-y: auto;
-            font-family: 'Courier New', monospace;
-            font-size: 11px;
-            color: #0f0;
-            border: 1px solid var(--md-sys-color-surface-variant);
+            font-size: 13px;
+            line-height: 1.5;
+            border: none;
             white-space: pre-wrap;
-            margin-top: 10px;
+            margin-top: 16px;
+            display: none;
+            /* Hidden by default */
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+
+        .log-box.visible {
+            display: block;
+            opacity: 1;
         }
 
         .info-text {
@@ -617,7 +632,13 @@
                         </button>
                         <button class="btn btn-tonal" onclick="restoreAllIcons()"
                             style="width:auto; padding:10px 24px; flex:0 1 auto; margin-bottom:0; border-color:var(--md-sys-color-error); color:var(--md-sys-color-error);">
-                            🗑️ 一键恢复
+                            <svg t="1769174207885" class="icon" viewBox="0 0 1024 1024" version="1.1"
+                                xmlns="http://www.w3.org/2000/svg" p-id="5371" width="18" height="18"
+                                style="margin-right:6px; fill:currentColor;">
+                                <path
+                                    d="M402.285706 786.285714l0-402.285714q0-7.972571-5.12-13.165714t-13.165714-5.12l-36.571429 0q-7.972571 0-13.165714 5.12t-5.12 13.165714l0 402.285714q0 7.972571 5.12 13.165714t13.165714 5.12l36.571429 0q7.972571 0 13.165714-5.12t5.12-13.165714zM548.57142 786.285714l0-402.285714q0-7.972571-5.12-13.165714t-13.165714-5.12l-36.571429 0q-7.972571 0-13.165714 5.12t-5.12 13.165714l0 402.285714q0 7.972571 5.12 13.165714t13.165714 5.12l36.571429 0q7.972571 0 13.165714-5.12t5.12-13.165714zM694.857135 786.285714l0-402.285714q0-7.972571-5.12-13.165714t-13.165714-5.12l-36.571429 0q-7.972571 0-13.165714 5.12t-5.12 13.165714l0 402.285714q0 7.972571 5.12 13.165714t13.165714 5.12l36.571429 0q7.972571 0 13.165714-5.12t5.12-13.165714zM383.999992 219.428571l256 0-27.428571-66.852571q-4.022857-5.12-9.728-6.290286l-181.174857 0q-5.705143 1.170286-9.728 6.290286zM914.285706 237.714286l0 36.571429q0 7.972571-5.12 13.165714t-13.165714 5.12l-54.857143 0 0 541.696q0 47.396571-26.843429 81.993143t-64.585143 34.596571l-475.428571 0q-37.741714 0-64.585143-33.426286t-26.843429-80.822857l0-544.036571-54.857143 0q-7.972571 0-13.165714-5.12t-5.12-13.165714l0-36.571429q0-7.972571 5.12-13.165714t13.165714-5.12l176.566857 0 40.009143-95.451429q8.557714-21.138286 30.866286-35.986286t45.129143-14.848l182.857143 0q22.820571 0 45.129143 14.848t30.866286 35.986286l40.009143 95.451429 176.566857 0q7.972571 0 13.165714 5.12t5.12 13.165714z"
+                                    p-id="5372"></path>
+                            </svg> 一键恢复
                         </button>
                     </div>
                 </div>
@@ -657,9 +678,26 @@
         }
         function log(msg, type = 'info') {
             const consoleBox = document.getElementById('log-console');
+
+            // Auto-show logic
+            if (consoleBox.style.display === 'none' || !consoleBox.classList.contains('visible')) {
+                consoleBox.style.display = 'block';
+                // Small delay to allow display:block to apply before opacity transition
+                requestAnimationFrame(() => {
+                    consoleBox.classList.add('visible');
+                });
+            }
+
             const time = new Date().toLocaleTimeString('en-GB');
-            let color = type === 'error' ? '#ff5252' : (type === 'warn' ? '#ffeb3b' : '#0f0');
-            consoleBox.innerHTML += `<div style="color:${color}">[${time}] ${msg}</div>`;
+            // MD3 Colors for logs
+            let color = 'inherit'; // Default on-surface-variant
+            if (type === 'error') color = 'var(--md-sys-color-error)';
+            if (type === 'warn') color = '#ffb74d'; // Orange-ish
+            if (type === 'success') color = 'var(--md-sys-color-success)';
+
+            // Slightly smaller timestamp
+            const timeSpan = `<span style="opacity:0.7; font-size:11px; margin-right:6px;">${time}</span>`;
+            consoleBox.innerHTML += `<div style="color:${color}; margin-bottom:4px;">${timeSpan}${msg}</div>`;
             consoleBox.scrollTop = consoleBox.scrollHeight;
         }
 
@@ -766,7 +804,7 @@
                 statusText.innerText = "已是最新版";
                 statusText.style.color = "var(--md-sys-color-success)";
                 detailText.innerText = `本地版本: ${currentLocalVersion}`;
-                iconEl.innerHTML = `<svg t="1769164724419" class="icon" viewBox="0 0 1098 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="7446" width="100%" height="100%"><path d="M476.808045 0.000043C213.401753 0.106685-0.031993 213.68973 0 477.074693S213.551052 953.98938 476.94668 954.021373s476.957344-213.412417 477.085315-476.808045A477.010665 477.010665 0 0 0 476.808045 0.000043z m273.761252 353.369671L441.861388 661.853674a43.1901 43.1901 0 0 1-62.023117 0L202.214984 484.251715a43.864079 43.864079 0 1 1 62.033781-62.033782l147.21959 147.21959 277.89897-276.86454a43.861946 43.861946 0 1 1 62.023117 62.033781z m0 0" p-id="7447" fill="var(--md-sys-color-success)"></path></svg>`;
+                iconEl.innerHTML = `<svg t="1769164724419" class="icon" viewBox="0 0 1098 1024" version="1.1" xmlns="http://www.w3.org/2000/svg" p-id="7446" width="100%" height="100%" preserveAspectRatio="xMidYMid meet"><path d="M476.808045 0.000043C213.401753 0.106685-0.031993 213.68973 0 477.074693S213.551052 953.98938 476.94668 954.021373s476.957344-213.412417 477.085315-476.808045A477.010665 477.010665 0 0 0 476.808045 0.000043z m273.761252 353.369671L441.861388 661.853674a43.1901 43.1901 0 0 1-62.023117 0L202.214984 484.251715a43.864079 43.864079 0 1 1 62.033781-62.033782l147.21959 147.21959 277.89897-276.86454a43.861946 43.861946 0 1 1 62.023117 62.033781z m0 0" p-id="7447" fill="var(--md-sys-color-success)"></path></svg>`;
                 iconEl.style.fill = "var(--md-sys-color-success)";
                 iconEl.className = "status-icon-large"; // Stop rotation
 
