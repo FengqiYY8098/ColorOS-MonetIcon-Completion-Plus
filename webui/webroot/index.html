@@ -158,57 +158,37 @@
             /* Cleaner look */
         }
 
-        /* Version Card V2 - Cleaner Layout */
+        /* Version Card V3 - Centered Stack Layout (Android Update Style) */
         .version-card {
-            background-color: var(--md-sys-color-surface-variant);
-            /* Slightly distinct background */
-            border-radius: 20px;
-            padding: 20px;
-            margin-bottom: 20px;
+            background-color: var(--md-sys-color-surface);
+            /* Clean background */
+            text-align: center;
+            padding: 32px 20px;
+            margin-bottom: 1px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
+            align-items: center;
+            justify-content: center;
             border: none;
         }
 
-        .v-row-main {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+        .status-icon-large {
+            font-size: 48px;
+            margin-bottom: 16px;
+            animation: pulse 2s infinite ease-in-out;
         }
 
-        .v-title {
+        .status-title {
+            font-size: 20px;
+            font-weight: 500;
+            margin-bottom: 8px;
+            color: var(--md-sys-color-on-surface);
+        }
+
+        .version-info-line {
             font-size: 14px;
             color: var(--md-sys-color-on-surface-variant);
-            font-weight: 500;
-        }
-
-        .v-number {
-            font-size: 24px;
-            font-weight: 400;
-            /* Thin modern font weight */
-            color: var(--md-sys-color-on-surface);
-            font-family: 'Roboto', sans-serif;
-        }
-
-        .v-badge {
-            font-size: 12px;
-            padding: 4px 10px;
-            border-radius: 8px;
-            background: rgba(0, 0, 0, 0.1);
-            color: var(--md-sys-color-on-surface);
-            font-weight: 500;
-        }
-
-        .v-badge.update {
-            background-color: var(--md-sys-color-primary);
-            color: var(--md-sys-color-on-primary);
-        }
-
-        .v-divider {
-            height: 1px;
-            background-color: rgba(255, 255, 255, 0.1);
-            margin: 4px 0;
+            margin-top: 4px;
         }
 
         /* Indeterminate Progress */
@@ -517,22 +497,11 @@
         <div class="card">
             <!-- 新的版本展示卡片 -->
             <!-- Version Card V2 -->
+            <!-- Version Card V3 -->
             <div id="version-display" class="version-card">
-                <div class="v-row-main">
-                    <div>
-                        <div class="v-title">当前安装</div>
-                        <div id="v-local-num" class="v-number">--</div>
-                    </div>
-                    <div style="text-align:right;">
-                        <div class="v-title">最新版本</div>
-                        <div id="v-cloud-num" class="v-number">--</div>
-                    </div>
-                </div>
-                <div class="v-divider"></div>
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                    <div id="v-status-badge" class="v-badge">检测中...</div>
-                    <div id="extra-info" style="font-size:12px; color:var(--md-sys-color-outline);">连接 GitHub...</div>
-                </div>
+                <div id="v-status-icon" class="status-icon-large">☁️</div>
+                <div id="v-status-text" class="status-title">正在检查更新...</div>
+                <div id="v-detail-text" class="version-info-line">当前: -- | 最新: --</div>
             </div>
 
             <!-- Removed standalone extra-info div as it is now inside card -->
@@ -584,8 +553,7 @@
             <p style="font-size:12px; color:var(--md-sys-color-on-surface-variant); margin-bottom:16px;">
                 扫描支持莫奈图标的应用，并管理自定义图标
             </p>
-            <button class="btn btn-tonal" onclick="openIconManager()"
-                style="background: linear-gradient(135deg, #49454F, #313033);">
+            <button class="btn btn-tonal" onclick="openIconManager()">
                 管理图标
             </button>
         </div>
@@ -760,34 +728,41 @@
         }
 
         function updateVersionUI() {
-            const localEl = document.getElementById('v-local-num');
-            const cloudEl = document.getElementById('v-cloud-num');
-            const badgeEl = document.getElementById('v-status-badge');
+            const statusText = document.getElementById('v-status-text');
+            const detailText = document.getElementById('v-detail-text');
+            const iconEl = document.getElementById('v-status-icon');
             const btn = document.getElementById('update-btn');
 
-            localEl.innerText = `v${currentLocalVersion}`;
-            cloudEl.innerText = `v${currentCloudVersion}`;
+            // 去掉 v 前缀比较
+            const localClean = currentLocalVersion.replace(/^v/, '');
+            const cloudClean = currentCloudVersion.replace(/^v/, '');
 
             if (currentLocalVersion === currentCloudVersion) {
-                badgeEl.innerText = "已是最新";
-                badgeEl.className = "v-badge"; // Normal style
+                statusText.innerText = "已是最新版";
+                statusText.style.color = "var(--md-sys-color-success)";
+                detailText.innerText = `本地版本: ${currentLocalVersion}`;
+                iconEl.innerText = "✅";
+                iconEl.style.animation = "none";
 
-                btn.innerText = "强制更新";
+                btn.innerText = "重新安装";
                 btn.className = "btn btn-tonal";
             } else {
-                badgeEl.innerText = "发现新版本";
-                badgeEl.className = "v-badge update"; // Highlight style
+                statusText.innerText = "发现新版本";
+                statusText.style.color = "var(--md-sys-color-primary)";
+                detailText.innerText = `可更新至 ${currentCloudVersion}`;
+                iconEl.innerText = "🚀";
+                iconEl.style.animation = "pulse 2s infinite ease-in-out";
 
-                btn.innerText = `立即更新`;
+                btn.innerText = "立即更新";
                 btn.className = "btn btn-primary";
             }
             btn.disabled = false;
             btn.onclick = startUpdate;
 
             // 统计信息
-            const match = currentCloudVersion.match(/(\d+)$/);
-            const count = match ? parseInt(match[1], 10) : 0;
-            document.getElementById('extra-info').innerText = `已适配 ${count} 个图标`;
+            // const match = currentCloudVersion.match(/(\d+)$/);
+            // const count = match ? parseInt(match[1], 10) : 0;
+            // document.getElementById('extra-info').innerText = `已适配 ${count} 个图标`;
         }
 
         function updateButtonState() {

@@ -41,10 +41,18 @@ jobs:
           # 去除空格
           count=$(echo $count | xargs)
           
-          # 3. 格式化版本号 (例如 v0.0058)
-          version=$(printf "v0.%04d" $count)
+          # 3. 格式化版本号 (例如 v0.58.10)
+          # 使用 ${count} + ${github.run_number} 确保唯一性
+          # 这解决了 只修改 WebUI 但图标数不变导致 release 失败的问题
+          
+          # 去掉前导零，避免 octal 解析问题
+          count_clean=$(echo $count | sed 's/^0*//')
+          if [ -z "$count_clean" ]; then count_clean=0; fi
+          
+          version="v0.${count_clean}.${{ github.run_number }}"
           
           echo "Icon Count: $count"
+          echo "Run Number: ${{ github.run_number }}"
           echo "Generated Version: $version"
           
           # 导出变量
@@ -63,7 +71,9 @@ jobs:
           
           # 准备 WebUI
           if [ -d "webui" ]; then
-            zip -r webui.zip webui
+            cd webui
+            zip -r ../webui.zip .
+            cd ..
           else
             echo "Error: webui directory missing!"
             exit 1
