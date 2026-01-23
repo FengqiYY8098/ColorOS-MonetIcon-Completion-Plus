@@ -10,11 +10,10 @@ CACHE_DIR="/data/adb/uxicons_cache_tmp"
 
 # 下载的 zip 路径
 ZIP_FILE="$CACHE_DIR/uxicons.zip"
+WEBUI_ZIP="$CACHE_DIR/webui.zip"
 
-# 目标路径 A (保持不变)
+# 目标路径
 TARGET_A="$MOD_DIR/data/oplus/uxicons/"
-
-# 【修正点】目标路径 B (增加了 hdpi 子目录)
 TARGET_B="$MOD_DIR/my_product/media/theme/uxicons/hdpi/"
 
 # 传入的新版本号参数
@@ -30,7 +29,7 @@ if [ ! -f "$ZIP_FILE" ]; then
     exit 1
 fi
 
-echo ">>> 正在解压..."
+echo ">>> 正在解压图标包..."
 # 解压到缓存目录
 unzip -o "$ZIP_FILE" -d "$CACHE_DIR" > /dev/null 2>&1
 
@@ -38,6 +37,18 @@ if [ $? -ne 0 ]; then
     echo "错误: 解压失败，文件可能损坏"
     rm -rf "$CACHE_DIR"
     exit 1
+fi
+
+# 2. 检查 WebUI 更新包
+if [ -f "$WEBUI_ZIP" ]; then
+    echo ">>> 发现 WebUI 更新包，正在部署..."
+    # 解压到模块根目录 (允许覆盖 webroot 下的内容)
+    unzip -o "$WEBUI_ZIP" -d "$MOD_DIR" > /dev/null 2>&1
+    if [ $? -ne 0 ]; then
+        echo "警告: WebUI 更新失败"
+    else
+        echo "WebUI 已更新"
+    fi
 fi
 
 echo ">>> 正在合并图标..."
