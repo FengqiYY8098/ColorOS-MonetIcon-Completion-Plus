@@ -10,7 +10,7 @@ on:
   push:
     paths:
       - 'uxicons/**'       # 监听图标变动
-      - 'webroot/index.html' # 监听 WebUI 变动
+      - 'webui/**'         # 监听 WebUI 变动
     branches:
       - main # 确保你的主分支名正确，有的是 master
 
@@ -62,12 +62,11 @@ jobs:
           fi
           
           # 准备 WebUI
-          if [ -f "webroot/index.html" ]; then
-            cp webroot/index.html webui.html
-          elif [ -f "index.html" ]; then
-            cp index.html webui.html
+          if [ -d "webui" ]; then
+            zip -r webui.zip webui
           else
-            echo "<h1>WebUI not found</h1>" > webui.html
+            echo "Error: webui directory missing!"
+            exit 1
           fi
 
       - name: Create Release
@@ -78,7 +77,7 @@ jobs:
           body: "" # 内容留空
           files: |
             uxicons.zip
-            webui.html
+            webui.zip
           prerelease: true
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
