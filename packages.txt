@@ -18,10 +18,10 @@ com.ejiema.ec
 com.example.piliplus
 com.follow.clash
 com.google.ai.edge.gallery
+com.google.android.apps.docs
 com.google.android.apps.docs.editors.docs
 com.google.android.apps.docs.editors.sheets
 com.google.android.apps.docs.editors.slides
-com.google.android.apps.docs
 com.google.android.apps.photos
 com.google.android.apps.photos.scanner
 com.google.android.apps.wearables.maestro.companion
