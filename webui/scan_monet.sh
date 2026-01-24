@@ -1,25 +1,32 @@
 #!/system/bin/sh
-# scan_monet.sh - Real Total Calculator & Scanner
+# scan_monet.sh - Sequential Incremental Scanner
 
-# === 1. Environment ===
+# === 1. Environment Setup ===
 TMP_DIR="/data/adb/moneticon_tmp"
+PROGRESS_FILE="$TMP_DIR/progress.json"
 RESULT_FILE="$TMP_DIR/moneticon_apps"
 SKIP_FILE="$TMP_DIR/skip_list.txt"
-RAW_MAP="$TMP_DIR/raw_map.txt"
-TARGET_LIST="$TMP_DIR/target_list.txt"
 LOG_FILE="$TMP_DIR/scan.log"
 
+# Clean & Init
 mkdir -p "$TMP_DIR"
-rm -f "$SKIP_FILE" "$RAW_MAP" "$TARGET_LIST"
+# Do NOT delete RESULT_FILE here (Managed by UI Refresh)
+# Cleanup previous run temp files if any
+rm -f "$PROGRESS_FILE" "$SKIP_FILE"
 
-trap "rm -f $SKIP_FILE $RAW_MAP $TARGET_LIST; exit 0" EXIT INT TERM
+# Trap signals
+cleanup() {
+    rm -f "$PROGRESS_FILE" "$SKIP_FILE"
+    exit 0
+}
+trap cleanup EXIT INT TERM
 
-# === 2. Config ===
+# === 2. Configuration ===
 MODDIR=${0%/*}
 AAPT_DIR="$MODDIR/webroot/aapt2"
 BLACKLIST_FILE="$MODDIR/webroot/blacklist"
 
-# Architecture
+# Architecture Check
 ABI=$(getprop ro.product.cpu.abi)
 if echo "$ABI" | grep -q "arm64"; then
     AAPT_BIN="aapt2-arm64-v8a"
@@ -27,74 +34,99 @@ else
     AAPT_BIN="aapt2-armeabi-v7a"
 fi
 AAPT="$AAPT_DIR/$AAPT_BIN"
-[ -f "$AAPT" ] && chmod +x "$AAPT"
+if [ -f "$AAPT" ]; then
+    chmod +x "$AAPT"
+fi
 
-# === 3. Prepare Lists ===
-echo "准备扫描列表..." > "$LOG_FILE"
-
-# 3.1 Build Skip List
+# === 3. Incremental Logic Setup ===
 echo -n "" > "$SKIP_FILE"
-[ -f "$RESULT_FILE" ] && cat "$RESULT_FILE" >> "$SKIP_FILE"
-[ -f "$BLACKLIST_FILE" ] && cat "$BLACKLIST_FILE" >> "$SKIP_FILE"
-# Ensure clean unique list of packages
+
+# Load existing results (if file exists)
+if [ -f "$RESULT_FILE" ]; then
+    cat "$RESULT_FILE" >> "$SKIP_FILE"
+fi
+# Load blacklist (if exists)
+if [ -f "$BLACKLIST_FILE" ]; then
+    cat "$BLACKLIST_FILE" >> "$SKIP_FILE"
+    # Ensure blacklist items are removed from result count calculation below?
+    # No, skip file is just for skipping scan.
+fi
+
+# Ensure unique entries for fast grep
 sort -u "$SKIP_FILE" -o "$SKIP_FILE"
 
-# 3.2 Build Raw Map (pkg path)
-# pm list output: package:/path/to/apk=com.pkg
-# APK paths can contain '=' (e.g. /data/app/~~abc==/base.apk=com.pkg)
-# So we split on the LAST '=' to get package name correctly
-# Format output: com.pkg /path/to/apk
-pm list packages -f -3 | sed 's/^package://' | while IFS= read -r line; do
-    # Extract package name (everything after last =)
-    pkg_name="${line##*=}"
-    # Extract APK path (everything before last =)
-    apk_path="${line%=*}"
-    [ -n "$pkg_name" ] && [ -n "$apk_path" ] && echo "$pkg_name $apk_path"
-done > "$RAW_MAP"
-
-# 3.3 Filter Targets
-# We want lines from RAW_MAP where $1 (pkg) is NOT in SKIP_FILE
-awk 'NR==FNR {skip[$1]=1; next} !($1 in skip) {print $0}' "$SKIP_FILE" "$RAW_MAP" > "$TARGET_LIST"
-
-# === 4. Scanning Loop ===
-TOTAL=$(wc -l < "$TARGET_LIST")
+# Initialize Counters
+TOTAL=0
 CURRENT=0
 FOUND=0
-[ -f "$RESULT_FILE" ] && FOUND=$(grep -c . "$RESULT_FILE")
+if [ -f "$RESULT_FILE" ]; then
+    FOUND=$(grep -c . "$RESULT_FILE")
+fi
 
-# Debug: Log counts for troubleshooting
-RAW_COUNT=$(wc -l < "$RAW_MAP")
-SKIP_COUNT=$(wc -l < "$SKIP_FILE")
-echo "DEBUG: Raw=$RAW_COUNT, Skip=$SKIP_COUNT, Target=$TOTAL, Already Found=$FOUND" >> "$LOG_FILE"
+echo "正在获取应用列表..." > "$LOG_FILE"
+RAW_LIST=$(pm list packages -f -3)
+TOTAL=$(echo "$RAW_LIST" | grep -c "package:")
 
-echo "Start Scanning ($TOTAL new apps)..." >> "$LOG_FILE"
+echo "开始扫描... (共 $TOTAL 个应用)" >> "$LOG_FILE"
 
-# Format of TARGET_LIST: com.pkg /path/to/apk
-while read -r pkg_name apk_path; do
-    [ -z "$pkg_name" ] && continue
+# === 4. Sequential Scan Loop ===
+IFS=$'\n'
+for line in $RAW_LIST; do
+    unset IFS
+    [ -z "$line" ] && continue
     
+    # Parse line: package:PATH=PKG
+    temp=${line#package:}
+    apk_path=${temp%=*}
+    pkg_name=${temp##*=}
+    
+    if [ -z "$apk_path" ] || [ -z "$pkg_name" ]; then continue; fi
+
     CURRENT=$((CURRENT + 1))
     
-    # Check
+    # --- Check Logic ---
+    # 0. Incremental Skip
+    if grep -F -x -q "$pkg_name" "$SKIP_FILE"; then
+        # Already processed or blacklisted
+        # We don't increment FOUND here because we want to count *new* findings?
+        # Or do we want to show total valid apps?
+        # The UI shows "Found: X". If we skip existing results, FOUND stays at initial value.
+        # This is correct.
+        
+        # Update Progress Periodically (every 10 skipped items to be fast)
+        if [ $((CURRENT % 10)) -eq 0 ]; then
+            echo "{\"total\": $TOTAL, \"current\": $CURRENT, \"found\": $FOUND, \"pkg\": \"$pkg_name\"}" > "$PROGRESS_FILE.tmp"
+            mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
+        fi
+        continue
+    fi
+
+    # 1. Direct AAPT Check (No unzip pre-check)
     output=$("$AAPT" dump badging "$apk_path" 2>/dev/null)
+    
+    # Robust icon path extraction (filter line first, then extract)
+    # This handles cases where badging output format might vary
     icon_path=$(echo "$output" | grep "application:" | sed -n "s/.*icon='\([^']*\)'.*/\1/p" | head -n 1)
     
     if [[ "$icon_path" == *.xml ]]; then
+        # 2. XML Tree Deep Check
+        # Check for 'monochrome' OR 'themed_icon'
         if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i -E "monochrome|themed_icon"; then
             echo "$pkg_name" >> "$RESULT_FILE"
             FOUND=$((FOUND + 1))
         fi
     fi
     
-    # Real-time Update
-    # PROGRESS:Index/Total:FoundCount
-    echo "PROGRESS:$CURRENT/$TOTAL:$FOUND" >> "$LOG_FILE"
+    # Update Progress (Every 5 processed items)
+    if [ $((CURRENT % 5)) -eq 0 ]; then
+        echo "{\"total\": $TOTAL, \"current\": $CURRENT, \"found\": $FOUND, \"pkg\": \"$pkg_name\"}" > "$PROGRESS_FILE.tmp"
+        mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
+    fi
+done
 
-done < "$TARGET_LIST"
+# Final Update
+echo "{\"total\": $TOTAL, \"current\": $CURRENT, \"found\": $FOUND, \"pkg\": \"Completed\"}" > "$PROGRESS_FILE.tmp"
+mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
 
-# Final
-echo "PROGRESS:$TOTAL/$TOTAL:$FOUND" >> "$LOG_FILE"
 echo "扫描完成。" >> "$LOG_FILE"
 echo "DONE" >> "$LOG_FILE"
-
-rm -f "$SKIP_FILE" "$RAW_MAP" "$TARGET_LIST"

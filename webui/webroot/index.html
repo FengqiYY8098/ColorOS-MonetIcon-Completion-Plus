@@ -1360,12 +1360,10 @@
                 }
 
                 try {
-                    // Read last line of scan log
+                    // Check for DONE signal in scan.log
                     const logRes = await exec(`tail -n 1 "${SCAN_LOG}"`);
                     if (logRes.errno === 0) {
                         const line = logRes.stdout.trim();
-
-                        // Check Done
                         if (line === "DONE" || line.includes("扫描完成")) {
                             clearInterval(scanTimer);
                             isScanning = false;
@@ -1373,31 +1371,27 @@
                             await loadScanResults();
                             return;
                         }
+                    }
 
+                    // Read progress from JSON file
+                    const jsonRes = await exec(`cat "${PROGRESS_JSON}" 2>/dev/null`);
+                    if (jsonRes.errno === 0 && jsonRes.stdout.trim()) {
+                        try {
+                            const progress = JSON.parse(jsonRes.stdout.trim());
+                            const { total, current, found } = progress;
 
-                        // Parse PROGRESS:CURRENT/TOTAL:FOUND
-                        if (line.startsWith("PROGRESS:")) {
-                            const parts = line.split(':');
-                            if (parts.length >= 3) {
-                                const ratio = parts[1]; // 12/50
-                                const foundCount = parts[2]; // 5
-                                const [curr, total] = ratio.split('/').map(Number);
-
-                                // Update Bar
-                                if (total > 0) {
-                                    const percent = (curr / total) * 100;
-                                    document.getElementById('scan-progress-bar').style.width = percent + '%';
-                                    document.getElementById('scan-progress-wrap').style.display = 'block';
-                                }
-
-                                // Update Text (No Package Name)
-                                const fileEl = document.getElementById('scan-file');
-                                if (fileEl) fileEl.innerText = `正在扫描: ${curr}/${total} | 已发现: ${foundCount}`;
+                            // Update Bar
+                            if (total > 0) {
+                                const percent = (current / total) * 100;
+                                document.getElementById('scan-progress-bar').style.width = percent + '%';
+                                document.getElementById('scan-progress-wrap').style.display = 'block';
                             }
-                        } else if (line) {
-                            // Fallback logging
+
+                            // Update Text (No Package Name as per user request)
                             const fileEl = document.getElementById('scan-file');
-                            if (fileEl) fileEl.innerText = line;
+                            if (fileEl) fileEl.innerText = `正在扫描: ${current}/${total} | 已发现: ${found}`;
+                        } catch (parseErr) {
+                            // JSON parse error, ignore
                         }
                     }
                 } catch (e) {
