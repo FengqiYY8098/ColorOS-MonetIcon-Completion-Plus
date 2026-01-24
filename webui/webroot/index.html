@@ -1340,9 +1340,12 @@
             }
         }
 
+        const PROGRESS_JSON = "/data/adb/moneticon_tmp/progress.json";
+
         function pollScanProgress() {
             if (scanTimer) clearInterval(scanTimer);
 
+            // Poll slightly faster as JSON is cheap to read
             scanTimer = setInterval(async () => {
                 if (!isScanning) {
                     clearInterval(scanTimer);
@@ -1350,50 +1353,54 @@
                 }
 
                 try {
-                    // 读取日志最后几行
-                    const logRes = await exec(`tail -n 1 "${SCAN_LOG}"`);
-                    if (logRes.errno === 0) {
-                        const line = logRes.stdout.trim();
+                    // Check if process finished first (via lock file absence or log DONE?)
+                    // The script trap removes lock file on exit.
+                    // But we can just check if process is running OR check log for DONE.
+                    // Let's stick to parsing progress.json stats for UI, 
+                    // and check log/status for completion signal.
 
-                        // 检查是否完成
-                        if (line === "DONE" || line.includes("扫描完成")) {
-                            clearInterval(scanTimer);
-                            isScanning = false;
+                    // Actually, simpler: Read JSON. If total == current, it's done?
+                    // No, "DONE" signal in log is definitive.
+                    // Let's read both or just trust progress.json?
+                    // The script writes total/current/found.
 
-                            // Reset Progress Bar
-                            document.getElementById('scan-progress-wrap').style.display = 'none';
+                    const res = await exec(`cat "${PROGRESS_JSON}"`);
+                    if (res.errno === 0 && res.stdout.trim()) {
+                        try {
+                            const data = JSON.parse(res.stdout); // {total, current, found}
+                            const { total, current, found } = data;
 
-                            await loadScanResults();
-                            return;
-                        }
-
-                        // 新的进度格式: PROGRESS:12/100:com.pkg
-                        if (line.startsWith("PROGRESS:")) {
-                            const parts = line.split(':'); // ["PROGRESS", "12/100", "pkg"]
-                            if (parts.length >= 3) {
-                                const ratio = parts[1]; // 12/100
-                                const pkg = parts[2];
-                                const [curr, total] = ratio.split('/').map(Number);
-
-                                // Update Progress Bar
-                                if (total > 0) {
-                                    const percent = (curr / total) * 100;
-                                    document.getElementById('scan-progress-bar').style.width = percent + '%';
-                                    document.getElementById('scan-progress-wrap').style.display = 'block';
-                                }
+                            if (total > 0) {
+                                const percent = (current / total) * 100;
+                                document.getElementById('scan-progress-bar').style.width = percent + '%';
+                                document.getElementById('scan-progress-wrap').style.display = 'block';
 
                                 const fileEl = document.getElementById('scan-file');
-                                if (fileEl) fileEl.innerText = `${pkg} (${curr}/${total})`;
+                                if (fileEl) fileEl.innerText = `已扫描: ${current}/${total} | 发现: ${found}`;
                             }
-                        } else if (line) {
-                            const fileEl = document.getElementById('scan-file');
-                            if (fileEl) fileEl.innerText = line.replace("正在扫描: ", "");
+
+                            // Completion Check:
+                            // We can check if `cat scan.log` says DONE, or if current == total for X seconds?
+                            // Better: Check scan.log for definitive "DONE" signal as before to trigger next step.
+                            const logRes = await exec(`tail -n 1 "${SCAN_LOG}"`);
+                            if (logRes.errno === 0) {
+                                const line = logRes.stdout.trim();
+                                if (line === "DONE") {
+                                    clearInterval(scanTimer);
+                                    isScanning = false;
+                                    document.getElementById('scan-progress-wrap').style.display = 'none';
+                                    await loadScanResults();
+                                }
+                            }
+
+                        } catch (parseErr) {
+                            // JSON might be half-written, ignore
                         }
                     }
                 } catch (e) {
                     console.log("轮询出错:", e);
                 }
-            }, 500); // 每500ms轮询一次
+            }, 300);
         }
 
         async function stopScan() {

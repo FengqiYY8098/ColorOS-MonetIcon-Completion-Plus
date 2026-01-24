@@ -1,14 +1,30 @@
 #!/system/bin/sh
+# scan_monet.sh - Robust Parallel Monet Scanner
 
-# Logging Setup
-LOG_FILE="/data/adb/moneticon_tmp/scan.log"
-RESULT_FILE="/data/adb/moneticon_tmp/moneticon_apps"
+# === 1. Environment & Constraints ===
+TMP_DIR="/data/adb/moneticon_tmp"
+LOCK_FILE="$TMP_DIR/scan.lock"
+PROGRESS_FILE="$TMP_DIR/progress.json"
+RESULT_FILE="$TMP_DIR/moneticon_apps"
+PIPE_FILE="$TMP_DIR/worker.pipe"
+STATUS_PIPE="$TMP_DIR/status.pipe"
 
-# Ensure clean state
-echo "正在初始化扫描..." > "$LOG_FILE"
-echo "" > "$RESULT_FILE"
+# Ensure clean environment
+mkdir -p "$TMP_DIR"
+rm -f "$PIPE_FILE" "$STATUS_PIPE" "$LOCK_FILE"
+# Check lock? For now, we force overwrite/start as this IS the scan process.
+touch "$LOCK_FILE"
 
-# === 1. Prepare AAPT2 ===
+# Trap signals for cleanup
+cleanup() {
+    rm -f "$PIPE_FILE" "$STATUS_PIPE" "$LOCK_FILE"
+    # Kill descendants (if supported by shell context, mostly best effort)
+    pkill -P $$ 2>/dev/null
+    exit 0
+}
+trap cleanup EXIT INT TERM
+
+# === 2. Configuration ===
 MODDIR=${0%/*}
 AAPT_DIR="$MODDIR/webroot/aapt2"
 
@@ -19,64 +35,131 @@ if echo "$ABI" | grep -q "arm64"; then
 else
     AAPT_BIN="aapt2-armeabi-v7a"
 fi
-
 AAPT="$AAPT_DIR/$AAPT_BIN"
-
-if [ ! -f "$AAPT" ]; then
-    echo "错误: 未找到 AAPT2 二进制文件: $AAPT" >> "$LOG_FILE"
-    echo "DONE" >> "$LOG_FILE"
-    exit 1
-fi
-
 chmod +x "$AAPT"
-echo "引擎: $AAPT_BIN (单线程模式)" >> "$LOG_FILE"
 
-# === 2. Fetch App List ===
-echo "正在获取应用列表..." >> "$LOG_FILE"
+# Detect CPU Cores & Set Threads
+CPU_CORES=$(grep -c ^processor /proc/cpuinfo 2>/dev/null)
+[ -z "$CPU_CORES" ] && CPU_CORES=4
+THREADS=$CPU_CORES
+[ "$THREADS" -gt 8 ] && THREADS=8
+
+# === 3. Initialize Concurrency (Token Bucket) ===
+mkfifo "$PIPE_FILE"
+# Open file descriptor 3 for read/write on the pipe
+exec 3<>"$PIPE_FILE"
+
+# Inject tokens
+for i in $(seq 1 $THREADS); do
+    echo >&3
+done
+
+# === 4. Progress Monitor ===
+mkfifo "$STATUS_PIPE"
+echo "" > "$RESULT_FILE" # Clear result file
+
+# Background process to handle status aggregation
+(
+    total=0
+    current=0
+    found=0
+    
+    # Wait for total count first
+    read -r total_count < "$STATUS_PIPE"
+    total=$total_count
+
+    while read -r status < "$STATUS_PIPE"; do
+        if [ "$status" = "DONE" ]; then
+            break
+        elif [ "$status" = "CHECKED" ]; then
+            current=$((current + 1))
+        elif [ "$status" = "FOUND" ]; then
+            current=$((current + 1))
+            found=$((found + 1))
+        fi
+        
+        # throttle updates? For local file write, 1ms is fine.
+        # Write atomic JSON
+        echo "{\"total\": $total, \"current\": $current, \"found\": $found}" > "$PROGRESS_FILE.tmp"
+        mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
+    done
+) &
+STATUS_PID=$!
+exec 4>"$STATUS_PIPE"
+
+# === 5. Scan Logic (The Worker Check) ===
+check_app() {
+    local apk_path="$1"
+    local pkg_name="$2"
+    
+    # [Step 1: Pre-check] Zip structure
+    # Check if any resource folder for API 26+ exists (adaptive icons started roughly there)
+    # unzip -l is fast.
+    if ! unzip -l "$apk_path" 2>/dev/null | grep -q "res/.*-v26"; then
+        return 1 # Fail
+    fi
+
+    # [Step 2: Entry Lookup] Badging
+    local output
+    output=$("$AAPT" dump badging "$apk_path" 2>/dev/null)
+    # Extract icon path
+    local icon_path
+    icon_path=$(echo "$output" | grep "application: label" | sed -n "s/.*icon='\([^']*\)'.*/\1/p")
+    
+    # Must be XML
+    if [[ "$icon_path" != *.xml ]]; then
+        return 1
+    fi
+
+    # [Step 3: Deep Inspection] XML Tree
+    if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i "monochrome"; then
+        echo "$pkg_name" >> "$RESULT_FILE"
+        return 0 # Success
+    fi
+    
+    return 1
+}
+
+# === 6. Main Dispatcher ===
+echo "Gathering package list..."
 RAW_LIST=$(pm list packages -f -3)
-TOTAL=$(echo "$RAW_LIST" | grep -c "package:")
-CURRENT=0
+TOTAL_COUNT=$(echo "$RAW_LIST" | grep -c "package:")
 
-echo "开始精确扫描... (共 $TOTAL 个应用)" >> "$LOG_FILE"
+# Send total to progress monitor
+echo "$TOTAL_COUNT" >&4
 
-# === 3. Scanning Loop (Sequential) ===
+# Loop through apps
 echo "$RAW_LIST" | while read -r line; do
-    # Skip empty lines
     [ -z "$line" ] && continue
     
-    # Parse line: package:PATH=PKG
     temp=${line#package:}
     apk_path=${temp%=*}
     pkg_name=${temp##*=}
-
-    if [ -z "$apk_path" ] || [ -z "$pkg_name" ]; then
-        continue
-    fi
-
-    CURRENT=$((CURRENT + 1))
-
-    # --- Strict Trust Chain Analysis ---
-    is_supported=false
-
-    # Step 1: Ask Manifest for the active icon path
-    # Output line example: application: label='App Name' icon='res/mipmap-anydpi-v26/ic_launcher.xml'
-    icon_path=$($AAPT dump badging "$apk_path" 2>/dev/null | grep "application: label" | sed -n "s/.*icon='\([^']*\)'.*/\1/p")
     
-    # Step 2: Only proceed if we found an XML icon (Adaptive Icons are usually XML)
-    if [[ "$icon_path" == *.xml ]]; then
-        # Step 3: Check ONLY the active icon file for monochrome tag
-        if $AAPT dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i "monochrome"; then
-            is_supported=true
+    if [ -z "$apk_path" ]; then continue; fi
+
+    # Acquire Token
+    read -u 3 token
+
+    # Spawn Worker
+    (
+        if check_app "$apk_path" "$pkg_name"; then
+             echo "FOUND" >&4
+        else
+             echo "CHECKED" >&4
         fi
-    fi
-
-    if [ "$is_supported" = true ]; then
-        echo "$pkg_name" >> "$RESULT_FILE"
-    fi
-
-    # Progress Update
-    echo "PROGRESS:$CURRENT/$TOTAL:$pkg_name" >> "$LOG_FILE"
+        
+        # Return Token
+        echo >&3
+    ) &
 done
 
-echo "扫描完成。" >> "$LOG_FILE"
-echo "DONE" >> "$LOG_FILE"
+# Wait for all background jobs to finish
+wait
+
+# Signal DONE
+echo "DONE" >&4
+wait $STATUS_PID
+
+# Final Cleanup (handled by trap too, but good to be explicit)
+rm -f "$LOCK_FILE"
