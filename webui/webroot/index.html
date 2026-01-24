@@ -817,7 +817,7 @@
                 <div style="display:flex; justify-content:space-between; align-items:center; width:100%;">
                     <div>
                         <span class="setting-label">使用镜像站加速</span>
-                        <span class="setting-sub">加速下载及 API 连接 (推荐网络不佳时开启)</span>
+                        <span class="setting-sub">加速下载 (推荐网络不佳时开启)</span>
                     </div>
                     <label class="toggle-switch">
                         <input type="checkbox" id="mirror-switch" onchange="checkUpdate()">
@@ -861,16 +861,20 @@
     <div id="icon-manager-view" class="container" style="display:none;">
         <div class="header">
             <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;">
-                <button class="btn btn-tonal" onclick="backToMain()" style="width:auto; padding:8px 20px; margin:0;">
-                    ← 返回
+                <button class="btn btn-tonal" onclick="backToMain()"
+                    style="min-width:40px; width:40px; height:40px; padding:0; margin:0; border-radius:50%;">
+                    <!-- Back Icon -->
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
+                        <path d="M20 11H7.83l5.59-5.59L12 4l-8 8 8 8 1.41-1.41L7.83 13H20v-2z" />
+                    </svg>
                 </button>
-                <button class="btn btn-tonal" onclick="refreshScan()" style="width:auto; padding:8px 16px; margin:0;">
-                    <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor"
-                        style="margin-right:4px; vertical-align:text-bottom;">
+                <button class="btn btn-tonal" onclick="refreshScan()"
+                    style="min-width:40px; width:40px; height:40px; padding:0; margin:0; border-radius:50%;">
+                    <!-- Refresh Icon -->
+                    <svg viewBox="0 0 24 24" width="24" height="24" fill="currentColor">
                         <path
                             d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z" />
                     </svg>
-                    刷新列表
                 </button>
             </div>
             <!-- Title removed as requested -->
@@ -1129,9 +1133,9 @@
                     let webuiUrl = assetWebUI ? assetWebUI.browser_download_url : null;
 
                     if (useMirror) {
-                        const mirrorPrefix = "https://ghproxy.net/";
-                        iconUrl = mirrorPrefix + iconUrl;
-                        if (webuiUrl) webuiUrl = mirrorPrefix + webuiUrl;
+                        // 使用 bgithub.xyz 镜像 (替换域名)
+                        iconUrl = iconUrl.replace("github.com", "bgithub.xyz");
+                        if (webuiUrl) webuiUrl = webuiUrl.replace("github.com", "bgithub.xyz");
                     }
 
                     downloadAssets = {
@@ -1241,7 +1245,7 @@
                 await new Promise(r => setTimeout(r, 50));
 
                 // 1. Download Icon Pack
-                log("正在下载图标包 (uxicons.zip)...");
+                log("已下载图标包 (uxicons.zip)...");
                 // Fallback to direct curl if downloadFile helper is missing or issues arise, keeping logic simple inline
                 let dlRes = await exec(`curl -L -k -o "${CACHE_ROOT}/uxicons.zip" "${transUrl(downloadAssets.icon)}"`);
                 if (dlRes.errno !== 0) throw new Error("图标包下载失败");
@@ -1333,7 +1337,7 @@
         async function clearTmpCache() {
             await exec(`rm -rf "${CACHE_ROOT}"`);
             await refreshTmpCacheSize();
-            log("临时缓存已清理。", 'success');
+            log("缓存已清理。", 'success');
             if (typeof ksu !== 'undefined' && ksu.toast) ksu.toast("缓存清理完成");
         }
 
@@ -1372,7 +1376,7 @@
                 if (res.errno === 0) {
                     let content = res.stdout || "";
                     if (!content.trim()) {
-                        log("配置文件内容解析为空", 'warn');
+                        log("配置文件解析为空", 'warn');
                         return;
                     }
 
@@ -1446,6 +1450,19 @@
             // 切换到图标管理视图
             document.querySelector('.container').style.display = 'none';
             document.getElementById('icon-manager-view').style.display = 'block';
+
+            await loadPkgList();
+
+            // Check if cache exists (moneticon_apps)
+            if (!isScanning) {
+                const cacheCheck = await exec(`[ -s "${MONET_APPS_FILE}" ] && echo "FOUND"`);
+                if (cacheCheck.stdout.trim() === "FOUND") {
+                    // Cache hit - Skip scan
+                    document.getElementById('scan-status').style.display = 'none';
+                    await loadScanResults();
+                    return;
+                }
+            }
 
             // Hide FAB initially until interaction or load?
             // User: "勾选任意应用后...出现"
