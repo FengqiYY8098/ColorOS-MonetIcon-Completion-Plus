@@ -2,6 +2,8 @@ com.coloros.alarmclock
 com.coloros.calculator
 com.coloros.calendar
 com.coloros.compass2
+com.coloros.filemanager
+com.finshell.wallet
 com.coloros.note
 com.coloros.shortcuts
 com.coloros.soundrecorder
@@ -13,3 +15,7 @@ com.oneplus.member
 com.oplus.consumerIRApp
 com.oplus.melody
 com.oplus.riderMode
+andes.oplus.documentsreader
+
+com.google.android.safetycore
+com.google.android.tts

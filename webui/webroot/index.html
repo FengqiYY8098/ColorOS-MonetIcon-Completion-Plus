@@ -770,6 +770,24 @@
     </style>
 </head>
 
+<!-- Refresh Mode Dialog -->
+<div id="refresh-mode-dialog" class="dialog-overlay" style="display: none;">
+    <div class="dialog-box">
+        <h3 class="dialog-title">选择刷新模式</h3>
+        <div class="dialog-content">
+            <p style="margin-bottom:12px;"><b>完整刷新</b>: 重新生成整个应用列表，耗时较长。</p>
+            <p><b>部分刷新</b>: 仅扫描新增或未检测的应用，保留现有结果。</p>
+        </div>
+        <div class="dialog-actions" style="flex-direction:column; gap:8px;">
+            <button class="dialog-btn" onclick="startScan('full')"
+                style="background:var(--md-sys-color-primary); color:var(--md-sys-color-on-primary); width:100%;">完整刷新</button>
+            <button class="dialog-btn" onclick="startScan('partial')"
+                style="background:var(--md-sys-color-surface-variant); color:var(--md-sys-color-on-surface-variant); width:100%;">部分刷新</button>
+            <button class="dialog-btn" onclick="closeRefreshDialog()" style="width:100%; margin-top:4px;">取消</button>
+        </div>
+    </div>
+</div>
+
 <body>
 
     <div class="container">
@@ -1457,32 +1475,41 @@
             if (!isScanning) {
                 const cacheCheck = await exec(`[ -s "${MONET_APPS_FILE}" ] && echo "FOUND"`);
                 if (cacheCheck.stdout.trim() === "FOUND") {
-                    // Cache hit - Skip scan
-                    document.getElementById('scan-status').style.display = 'none';
+                    // Cache hit - Skip scan and show list directly
                     await loadScanResults();
-                    return;
+                } else {
+                    // No cache, prompt for scan type (or default to partial if first time)
+                    // For first time, we can just do partial (which is effectively full if empty)
+                    // But to be consistent, let's just start a partial scan automatically if it's missing
+                    startScan('partial');
                 }
+            } else {
+                pollScanProgress();
             }
+        }
 
-            // Hide FAB initially until interaction or load?
-            // User: "勾选任意应用后...出现"
-            // If we load existing checks, should we show FAB? Maybe not, until user changes something.
-            // But let's verify. I'll hide it initially.
-            document.getElementById('fab-save').style.display = 'none';
+        function showRefreshDialog() {
+            document.getElementById('refresh-mode-dialog').style.display = 'flex';
+        }
 
-            // 重置 UI
+        function closeRefreshDialog() {
+            document.getElementById('refresh-mode-dialog').style.display = 'none';
+        }
+
+        async function startScan(mode = 'partial') {
+            closeRefreshDialog();
+
             const statusEl = document.getElementById('scan-status');
-            statusEl.style.display = 'block';
             statusEl.innerHTML = `
-                <div class="spinner"></div>
-                <p id="scan-msg" style="margin-top:16px; color:var(--md-sys-color-on-surface-variant);">正在扫描...</p>
-                <!-- 进度条 -->
+                <div class="spinner scanner-anim"></div>
+                <p style="margin-top:16px; font-weight:500;">正在扫描已安装应用...</p>
                 <div id="scan-progress-wrap" class="scan-progress-wrap">
                     <div id="scan-progress-bar" class="scan-progress-bar"></div>
                 </div>
                 <div id="scan-file" style="font-size:12px; color:var(--md-sys-color-outline); margin-top:8px; height:20px;"></div>
-
             `;
+            // Show scan status, hide list
+            document.getElementById('scan-status').style.display = 'block';
             document.getElementById('app-list-container').style.display = 'none';
 
             // Load pkglist BEFORE scan
@@ -1498,7 +1525,8 @@
                 await exec(`echo "准备就绪" > "${SCAN_LOG}"`);
 
                 // 启动后台进程 (nohup ... &)
-                const scanCmd = `nohup sh "${SCAN_SCRIPT}" > /dev/null 2>&1 &`;
+                // Pass mode as argument
+                const scanCmd = `nohup sh "${SCAN_SCRIPT}" "${mode}" > /dev/null 2>&1 &`;
                 await exec(scanCmd);
 
                 isScanning = true;
@@ -1574,7 +1602,7 @@
 
             document.getElementById('scan-status').innerHTML = `
                 <p style="color:var(--md-sys-color-error); margin-bottom:16px;">扫描已手动终止</p>
-                <button class="btn btn-tonal" onclick="openIconManager()">重新扫描</button>
+                <button class="btn btn-tonal" onclick="showRefreshDialog()">重新扫描</button>
                 <button class="btn btn-tonal" onclick="backToMain()" style="margin-left:8px;">返回</button>
             `;
         }
@@ -1588,7 +1616,7 @@
             if (appsRes.errno !== 0) {
                 document.getElementById('scan-status').innerHTML = `
                     <p>读取结果失败</p>
-                    <button class="btn btn-tonal" onclick="openIconManager()">重试</button>
+                    <button class="btn btn-tonal" onclick="showRefreshDialog()">重试</button>
                 `;
                 return;
             }
