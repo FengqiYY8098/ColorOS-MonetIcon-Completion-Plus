@@ -19,6 +19,22 @@ TARGET_B="$MOD_DIR/my_product/media/theme/uxicons/hdpi/"
 # 传入的新版本号参数
 NEW_VERSION="$1"
 
+# === 内部函数 ===
+cleanup_cache() {
+    echo ">>> 清理临时目录 (保留扫描结果)..."
+    if [ -d "$CACHE_DIR" ]; then
+        # 保留 moneticon_apps，删除其他文件
+        find "$CACHE_DIR" -maxdepth 1 -type f ! -name "moneticon_apps" -delete
+        
+        # 删除可能存在的解压目录
+        rm -rf "$CACHE_DIR/uxicons"
+        rm -rf "$CACHE_DIR/webui"
+        
+        # 清理其他可能的文件夹
+        find "$CACHE_DIR" -mindepth 1 -type d -exec rm -rf {} +
+    fi
+}
+
 # === 开始执行 ===
 echo ">>> 脚本开始执行 (Root)..."
 echo ">>> 正在处理缓存: $CACHE_DIR"
@@ -35,7 +51,8 @@ unzip -o "$ZIP_FILE" -d "$CACHE_DIR" > /dev/null 2>&1
 
 if [ $? -ne 0 ]; then
     echo "错误: 解压失败，文件可能损坏"
-    rm -rf "$CACHE_DIR"
+    rm -f "$ZIP_FILE" # 只删除损坏的压缩包，保留其他可能有用的数据
+    cleanup_cache
     exit 1
 fi
 
@@ -81,14 +98,7 @@ if [ -f "$PKGLIST" ]; then
     done < "$PKGLIST"
 fi
 
-echo ">>> 清理临时目录 (保留扫描结果)..."
-# 保留 moneticon_apps，删除其他文件
-find "$CACHE_DIR" -maxdepth 1 -type f ! -name "moneticon_apps" -delete
-# 删除解压出来的文件夹
-rm -rf "$CACHE_DIR/uxicons"
-rm -rf "$CACHE_DIR/webui"
-# 清理其他可能的文件夹
-find "$CACHE_DIR" -mindepth 1 -type d -exec rm -rf {} +
+cleanup_cache
 
 echo ">>> 全部完成 (Success)"
 exit 0
