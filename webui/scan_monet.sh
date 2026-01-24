@@ -41,39 +41,27 @@ fi
 # === 3. Incremental Logic Setup ===
 echo -n "" > "$SKIP_FILE"
 
-# Load existing results (if file exists), filter empty lines
+# Load existing results (if file exists), filter empty lines & strip CR
 if [ -f "$RESULT_FILE" ]; then
-    grep -v '^$' "$RESULT_FILE" >> "$SKIP_FILE" 2>/dev/null
+    grep -v '^$' "$RESULT_FILE" | tr -d '\r' >> "$SKIP_FILE" 2>/dev/null
 fi
-# Load blacklist (if exists), filter empty lines
+# Load blacklist (if exists), filter empty lines & strip CR
 if [ -f "$BLACKLIST_FILE" ]; then
-    grep -v '^$' "$BLACKLIST_FILE" >> "$SKIP_FILE" 2>/dev/null
+    grep -v '^$' "$BLACKLIST_FILE" | tr -d '\r' >> "$SKIP_FILE" 2>/dev/null
 fi
 
 # Ensure unique entries for fast grep
 sort -u "$SKIP_FILE" -o "$SKIP_FILE"
-
-# DEBUG: Log paths and counts
-echo "=== DEBUG INFO ===" > "$LOG_FILE"
-echo "MODDIR: $MODDIR" >> "$LOG_FILE"
-echo "BLACKLIST_FILE: $BLACKLIST_FILE" >> "$LOG_FILE"
-echo "BLACKLIST EXISTS: $([ -f "$BLACKLIST_FILE" ] && echo YES || echo NO)" >> "$LOG_FILE"
-echo "RESULT_FILE: $RESULT_FILE" >> "$LOG_FILE"
-echo "RESULT EXISTS: $([ -f "$RESULT_FILE" ] && echo YES || echo NO)" >> "$LOG_FILE"
-echo "SKIP_FILE count: $(wc -l < "$SKIP_FILE")" >> "$LOG_FILE"
-echo "SKIP_FILE content (first 5):" >> "$LOG_FILE"
-head -5 "$SKIP_FILE" >> "$LOG_FILE"
-echo "==================" >> "$LOG_FILE"
 
 # Initialize Counters
 TOTAL=0
 CURRENT=0
 FOUND=0
 if [ -f "$RESULT_FILE" ]; then
-    FOUND=$(grep -c . "$RESULT_FILE" 2>/dev/null || echo 0)
+    FOUND=$(grep -c . "$RESULT_FILE")
 fi
 
-echo "正在获取应用列表..." >> "$LOG_FILE"
+echo "正在获取应用列表..." > "$LOG_FILE"
 RAW_LIST=$(pm list packages -f -3)
 TOTAL=$(echo "$RAW_LIST" | grep -c "package:")
 
@@ -89,6 +77,8 @@ for line in $RAW_LIST; do
     temp=${line#package:}
     apk_path=${temp%=*}
     pkg_name=${temp##*=}
+    # Strip CR/whitespace
+    pkg_name=$(echo "$pkg_name" | tr -d '\r' | tr -d '[:space:]')
     
     if [ -z "$apk_path" ] || [ -z "$pkg_name" ]; then continue; fi
 
@@ -96,6 +86,11 @@ for line in $RAW_LIST; do
     
     # --- Check Logic ---
     # 0. Incremental Skip
+    # Debug first few
+    if [ $CURRENT -le 5 ]; then
+        echo "DESC: Check '$pkg_name'" >> "$LOG_FILE"
+    fi
+
     if grep -F -x -q "$pkg_name" "$SKIP_FILE"; then
         # Already processed or blacklisted
         # We don't increment FOUND here because we want to count *new* findings?
