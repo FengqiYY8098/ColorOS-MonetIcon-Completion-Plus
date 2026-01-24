@@ -41,8 +41,16 @@ sort -u "$SKIP_FILE" -o "$SKIP_FILE"
 
 # 3.2 Build Raw Map (pkg path)
 # pm list output: package:/path/to/apk=com.pkg
-# We sed to: com.pkg /path/to/apk
-pm list packages -f -3 | sed 's/^package://' | sed 's/=/\t/' | awk '{print $2, $1}' > "$RAW_MAP"
+# APK paths can contain '=' (e.g. /data/app/~~abc==/base.apk=com.pkg)
+# So we split on the LAST '=' to get package name correctly
+# Format output: com.pkg /path/to/apk
+pm list packages -f -3 | sed 's/^package://' | while IFS= read -r line; do
+    # Extract package name (everything after last =)
+    pkg_name="${line##*=}"
+    # Extract APK path (everything before last =)
+    apk_path="${line%=*}"
+    [ -n "$pkg_name" ] && [ -n "$apk_path" ] && echo "$pkg_name $apk_path"
+done > "$RAW_MAP"
 
 # 3.3 Filter Targets
 # We want lines from RAW_MAP where $1 (pkg) is NOT in SKIP_FILE
@@ -54,7 +62,12 @@ CURRENT=0
 FOUND=0
 [ -f "$RESULT_FILE" ] && FOUND=$(grep -c . "$RESULT_FILE")
 
-echo "Start Scanning ($TOTAL new apps)..." > "$LOG_FILE"
+# Debug: Log counts for troubleshooting
+RAW_COUNT=$(wc -l < "$RAW_MAP")
+SKIP_COUNT=$(wc -l < "$SKIP_FILE")
+echo "DEBUG: Raw=$RAW_COUNT, Skip=$SKIP_COUNT, Target=$TOTAL, Already Found=$FOUND" >> "$LOG_FILE"
+
+echo "Start Scanning ($TOTAL new apps)..." >> "$LOG_FILE"
 
 # Format of TARGET_LIST: com.pkg /path/to/apk
 while read -r pkg_name apk_path; do

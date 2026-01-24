@@ -1329,8 +1329,7 @@
                 await exec(`chmod +x "${SCAN_SCRIPT}"`);
                 await exec(`mkdir -p "${CACHE_ROOT}"`);
 
-                // 清理旧日志和结果文件
-                await exec(`rm -f "${MONET_APPS_FILE}"`);
+                // 清理旧日志（保留结果文件以支持增量扫描）
                 await exec(`echo "准备就绪" > "${SCAN_LOG}"`);
 
                 // 启动后台进程 (nohup ... &)
@@ -1350,62 +1349,62 @@
 
         const PROGRESS_JSON = "/data/adb/moneticon_tmp/progress.json";
 
-function pollScanProgress() {
-    if (scanTimer) clearInterval(scanTimer);
+        function pollScanProgress() {
+            if (scanTimer) clearInterval(scanTimer);
 
-    // Poll every 500ms
-    scanTimer = setInterval(async () => {
-        if (!isScanning) {
-            clearInterval(scanTimer);
-            return;
-        }
-
-        try {
-            // Read last line of scan log
-            const logRes = await exec(`tail -n 1 "${SCAN_LOG}"`);
-            if (logRes.errno === 0) {
-                const line = logRes.stdout.trim();
-
-                // Check Done
-                if (line === "DONE" || line.includes("扫描完成")) {
+            // Poll every 500ms
+            scanTimer = setInterval(async () => {
+                if (!isScanning) {
                     clearInterval(scanTimer);
-                    isScanning = false;
-                    document.getElementById('scan-progress-wrap').style.display = 'none';
-                    await loadScanResults();
                     return;
                 }
 
+                try {
+                    // Read last line of scan log
+                    const logRes = await exec(`tail -n 1 "${SCAN_LOG}"`);
+                    if (logRes.errno === 0) {
+                        const line = logRes.stdout.trim();
 
-// Parse PROGRESS:CURRENT/TOTAL:FOUND
-if (line.startsWith("PROGRESS:")) {
-    const parts = line.split(':');
-    if (parts.length >= 3) {
-        const ratio = parts[1]; // 12/50
-        const foundCount = parts[2]; // 5
-        const [curr, total] = ratio.split('/').map(Number);
+                        // Check Done
+                        if (line === "DONE" || line.includes("扫描完成")) {
+                            clearInterval(scanTimer);
+                            isScanning = false;
+                            document.getElementById('scan-progress-wrap').style.display = 'none';
+                            await loadScanResults();
+                            return;
+                        }
 
-        // Update Bar
-        if (total > 0) {
-            const percent = (curr / total) * 100;
-            document.getElementById('scan-progress-bar').style.width = percent + '%';
-            document.getElementById('scan-progress-wrap').style.display = 'block';
+
+                        // Parse PROGRESS:CURRENT/TOTAL:FOUND
+                        if (line.startsWith("PROGRESS:")) {
+                            const parts = line.split(':');
+                            if (parts.length >= 3) {
+                                const ratio = parts[1]; // 12/50
+                                const foundCount = parts[2]; // 5
+                                const [curr, total] = ratio.split('/').map(Number);
+
+                                // Update Bar
+                                if (total > 0) {
+                                    const percent = (curr / total) * 100;
+                                    document.getElementById('scan-progress-bar').style.width = percent + '%';
+                                    document.getElementById('scan-progress-wrap').style.display = 'block';
+                                }
+
+                                // Update Text (No Package Name)
+                                const fileEl = document.getElementById('scan-file');
+                                if (fileEl) fileEl.innerText = `正在扫描: ${curr}/${total} | 已发现: ${foundCount}`;
+                            }
+                        } else if (line) {
+                            // Fallback logging
+                            const fileEl = document.getElementById('scan-file');
+                            if (fileEl) fileEl.innerText = line;
+                        }
+                    }
+                } catch (e) {
+                    console.log("轮询出错:", e);
+                }
+            }, 500);
         }
-
-        // Update Text (No Package Name)
-        const fileEl = document.getElementById('scan-file');
-        if (fileEl) fileEl.innerText = `正在扫描: ${curr}/${total} | 已发现: ${foundCount}`;
-    }
-} else if (line) {
-    // Fallback logging
-    const fileEl = document.getElementById('scan-file');
-    if (fileEl) fileEl.innerText = line;
-}
-            }
-        } catch (e) {
-            console.log("轮询出错:", e);
-        }
-    }, 500);
-}
 
         async function stopScan() {
             isScanning = false;
