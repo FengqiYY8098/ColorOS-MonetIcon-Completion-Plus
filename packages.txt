@@ -1,6 +1,8 @@
 ai.x.grok
 cash.savo
 cn.ac.lz233.tarnhelm
+cn.emagsoftware.gamehall
+com.MengNiang.panbaidu
 com.absinthe.libchecker
 com.ai.assistance.operit
 com.application.zaona.flowchat
@@ -17,6 +19,7 @@ com.dijia1124.plusplusbattery
 com.ejiema.ec
 com.example.piliplus
 com.follow.clash
+com.github.jing332.alistflutter
 com.google.ai.edge.gallery
 com.google.android.apps.docs
 com.google.android.apps.docs.editors.docs
@@ -29,6 +32,7 @@ com.google.android.calculator
 com.google.android.gm
 com.google.android.youtube
 com.huachenjie.shandong_school
+com.ilanzou.app.disk
 com.js.jshome
 com.junkfood.seal
 com.linkease.easyexplorer
