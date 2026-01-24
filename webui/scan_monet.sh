@@ -76,25 +76,25 @@ while read -r apk_path pkg_name; do
 
     CURRENT=$((CURRENT + 1))
     
-    # 1. Direct AAPT Check (Trust Chain)
-    # Extract icon path. 
-    # Optimization: Only sed pattern match, head -n 1 for speed.
-    if ! unzip -l "$apk_path" 2>/dev/null | grep -q "res/.*-v26"; then
-       # Fast fail? No, user wanted robust check. 
-       # But actually user said "remove unzip check" in previous steps for accuracy.
-       # So proceed to AAPT.
-       true
-    fi
-
-    # AAPT Badging
+    # 1. Direct AAPT Check (No unzip pre-check)
     output=$("$AAPT" dump badging "$apk_path" 2>/dev/null)
+    
+    # Robust icon path extraction (filter line first, then extract)
+    # This handles cases where badging output format might vary
     icon_path=$(echo "$output" | grep "application:" | sed -n "s/.*icon='\([^']*\)'.*/\1/p" | head -n 1)
     
+    # Debug Logging
+    echo "[DEBUG] Check: $pkg_name | Icon: $icon_path" >> "$LOG_FILE"
+
     if [[ "$icon_path" == *.xml ]]; then
-        # XML Tree Check
-        if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i -E "monochrome|themed_icon"; then
+        # 2. XML Tree Deep Check
+        # Check for 'monochrome' OR 'themed_icon'
+        xml_check=$("$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -i -E "monochrome|themed_icon")
+        
+        if [ -n "$xml_check" ]; then
             echo "$pkg_name" >> "$RESULT_FILE"
             FOUND=$((FOUND + 1))
+            echo "[DEBUG] Found: $pkg_name" >> "$LOG_FILE"
         fi
     fi
     
