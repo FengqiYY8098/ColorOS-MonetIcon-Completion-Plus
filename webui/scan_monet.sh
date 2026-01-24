@@ -4,7 +4,7 @@
 # === 1. Environment ===
 TMP_DIR="/data/adb/moneticon_tmp"
 PROGRESS_FILE="$TMP_DIR/progress.json"
-RESULT_FILE="$TMP_DIR/moneticon_apps"
+RESULT_FILE="$MODDIR/webroot/moneticon_apps"
 SKIP_FILE="$TMP_DIR/skip_list.txt"
 RAW_MAP="$TMP_DIR/raw_map.txt"
 TARGET_LIST="$TMP_DIR/target_list.txt"

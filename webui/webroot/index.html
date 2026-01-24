@@ -1336,6 +1336,8 @@
 
         async function clearTmpCache() {
             await exec(`rm -rf "${CACHE_ROOT}"`);
+            // Also delete the persistent scan results as requested
+            await exec(`rm -f "${MONET_APPS_FILE}"`);
             await refreshTmpCacheSize();
             log("缓存已清理。", 'success');
             if (typeof ksu !== 'undefined' && ksu.toast) ksu.toast("缓存清理完成");
@@ -1344,7 +1346,7 @@
         // === 图标管理功能 ===
         const SCAN_SCRIPT = `${MOD_ROOT}/scan_monet.sh`;
         const CLEAN_SCRIPT = `${MOD_ROOT}/clean_icon.sh`;
-        const MONET_APPS_FILE = `${CACHE_ROOT}/moneticon_apps`;
+        const MONET_APPS_FILE = `${MOD_ROOT}/webroot/moneticon_apps`;
         const DELETE_LIST_FILE = `${CACHE_ROOT}/delete_packages.txt`;
         const MODULE_PROP = `${MOD_ROOT}/module.prop`;
         const TARGET_PATH1 = `${MOD_ROOT}/my_product/media/theme/uxicons/hdpi/`;

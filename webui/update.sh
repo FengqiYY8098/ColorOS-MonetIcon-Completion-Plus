@@ -21,17 +21,10 @@ NEW_VERSION="$1"
 
 # === 内部函数 ===
 cleanup_cache() {
-    echo ">>> 清理临时目录 (保留扫描结果)..."
+    echo ">>> 清理临时目录..."
     if [ -d "$CACHE_DIR" ]; then
-        # 保留 moneticon_apps，删除其他文件
-        find "$CACHE_DIR" -maxdepth 1 -type f ! -name "moneticon_apps" -delete
-        
-        # 删除可能存在的解压目录
-        rm -rf "$CACHE_DIR/uxicons"
-        rm -rf "$CACHE_DIR/webui"
-        
-        # 清理其他可能的文件夹
-        find "$CACHE_DIR" -mindepth 1 -type d -exec rm -rf {} +
+        # 直接删除整个缓存目录，因为扫描结果已经移出去了
+        rm -rf "$CACHE_DIR"
     fi
 }
 
