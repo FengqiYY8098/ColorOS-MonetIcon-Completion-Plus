@@ -101,18 +101,19 @@ for line in $RAW_LIST; do
         continue
     fi
 
-    # 1. Zip Check
-    if unzip -l "$apk_path" 2>/dev/null | grep -q "res/.*-v26"; then
-        # 2. Badging
-        output=$("$AAPT" dump badging "$apk_path" 2>/dev/null)
-        icon_path=$(echo "$output" | grep "application: label" | sed -n "s/.*icon='\([^']*\)'.*/\1/p")
-        
-        if [[ "$icon_path" == *.xml ]]; then
-            # 3. XML Tree
-            if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i "monochrome"; then
-                echo "$pkg_name" >> "$RESULT_FILE"
-                FOUND=$((FOUND + 1))
-            fi
+    # 1. Direct AAPT Check (No unzip pre-check)
+    output=$("$AAPT" dump badging "$apk_path" 2>/dev/null)
+    
+    # Robust icon path extraction (filter line first, then extract)
+    # This handles cases where badging output format might vary
+    icon_path=$(echo "$output" | grep "application:" | sed -n "s/.*icon='\([^']*\)'.*/\1/p" | head -n 1)
+    
+    if [[ "$icon_path" == *.xml ]]; then
+        # 2. XML Tree Deep Check
+        # Check for 'monochrome' OR 'themed_icon'
+        if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i -E "monochrome|themed_icon"; then
+            echo "$pkg_name" >> "$RESULT_FILE"
+            FOUND=$((FOUND + 1))
         fi
     fi
     
