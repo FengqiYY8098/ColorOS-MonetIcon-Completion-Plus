@@ -886,7 +886,7 @@
                 </div>
                 <div class="warning-content">
                     此功能仅限系统和模块版本 503 及以上使用!<br>
-                    勾选恢复自带图标，未勾选保留自定义。下次更新生效。<br>
+                    勾选恢复应用自带的莫奈图标，未勾选保留自定义图标。下次更新后生效。<br>
                     可手动修改配置文件: <span class="code-path">/data/adb/modules/ThemedIconCompletion/webroot/pkglist</span>
                 </div>
             </div>
@@ -901,7 +901,7 @@
                         style="font-size:15px; color:var(--md-sys-color-on-surface); margin-bottom:12px; font-weight:500; padding-left: 12px;">
                         已发现 <span id="app-count"
                             style="color:var(--md-sys-color-primary); font-size:20px; font-weight:bold; margin:0 4px;">0</span>
-                        个支持应用
+                        个自带莫奈图标的应用
                     </div>
 
                     <!-- Search Box -->
@@ -1104,11 +1104,6 @@
             const useMirror = document.getElementById('mirror-switch').checked;
             let apiUrl = "https://api.github.com/repos/ZhengXieGang/ColorOS-MonetIcon-Completion-Plus/releases";
 
-            if (useMirror) {
-                // 使用 gh.llkk.cc 镜像
-                apiUrl = "https://gh.llkk.cc/" + apiUrl;
-            }
-
             try {
                 const controller = new AbortController();
                 const timeoutId = setTimeout(() => controller.abort(), 10000); // 10s Timeout
@@ -1130,9 +1125,18 @@
                 const assetWebUI = latest.assets.find(a => a.name === "webui.zip");
 
                 if (assetIcon) {
+                    let iconUrl = assetIcon.browser_download_url;
+                    let webuiUrl = assetWebUI ? assetWebUI.browser_download_url : null;
+
+                    if (useMirror) {
+                        const mirrorPrefix = "https://ghproxy.net/";
+                        iconUrl = mirrorPrefix + iconUrl;
+                        if (webuiUrl) webuiUrl = mirrorPrefix + webuiUrl;
+                    }
+
                     downloadAssets = {
-                        icon: assetIcon.browser_download_url,
-                        webui: assetWebUI ? assetWebUI.browser_download_url : null
+                        icon: iconUrl,
+                        webui: webuiUrl
                     };
                     updateVersionUI();
                 } else {
@@ -1362,7 +1366,7 @@
                 // 2. Read content using 'echo $(cat ...)' to flatten output
                 // This bypasses the shell execution environment issue where only the last line is returned.
                 // It converts newlines to spaces, so we parse by splitting on whitespace.
-                log(`[DEBUG] 读取模式: Flatten Mode`);
+
                 const res = await exec(`echo $(cat "${PKGLIST_FILE}")`);
 
                 if (res.errno === 0) {
