@@ -1,25 +1,29 @@
 #!/system/bin/sh
-# scan_monet.sh - Robust Parallel Monet Scanner
+# scan_monet.sh - Filesystem Signaling Version (Deadlock Proof)
 
-# === 1. Environment & Constraints ===
+# === 1. Environment Setup ===
 TMP_DIR="/data/adb/moneticon_tmp"
 LOCK_FILE="$TMP_DIR/scan.lock"
 PROGRESS_FILE="$TMP_DIR/progress.json"
 RESULT_FILE="$TMP_DIR/moneticon_apps"
 PIPE_FILE="$TMP_DIR/worker.pipe"
-STATUS_PIPE="$TMP_DIR/status.pipe"
+# Tracker directory for counting progress
+TRACKER_DIR="$TMP_DIR/tracker"
 
-# Ensure clean environment
+# Clean & Init
+rm -rf "$TMP_DIR"
 mkdir -p "$TMP_DIR"
-rm -f "$PIPE_FILE" "$STATUS_PIPE" "$LOCK_FILE"
-# Check lock? For now, we force overwrite/start as this IS the scan process.
+mkdir -p "$TRACKER_DIR"
 touch "$LOCK_FILE"
+# Clear result file
+echo -n "" > "$RESULT_FILE"
 
-# Trap signals for cleanup
+# Trap signals
 cleanup() {
-    rm -f "$PIPE_FILE" "$STATUS_PIPE" "$LOCK_FILE"
-    # Kill descendants (if supported by shell context, mostly best effort)
+    # Kill descendants
     pkill -P $$ 2>/dev/null
+    rm -f "$PIPE_FILE" "$LOCK_FILE"
+    rm -rf "$TRACKER_DIR"
     exit 0
 }
 trap cleanup EXIT INT TERM
@@ -28,7 +32,7 @@ trap cleanup EXIT INT TERM
 MODDIR=${0%/*}
 AAPT_DIR="$MODDIR/webroot/aapt2"
 
-# Detect Architecture
+# Architecture Check
 ABI=$(getprop ro.product.cpu.abi)
 if echo "$ABI" | grep -q "arm64"; then
     AAPT_BIN="aapt2-arm64-v8a"
@@ -36,104 +40,107 @@ else
     AAPT_BIN="aapt2-armeabi-v7a"
 fi
 AAPT="$AAPT_DIR/$AAPT_BIN"
+# Ensure executable
+if [ ! -f "$AAPT" ]; then
+    # Fallback or error logging? 
+    # For now assume it exists as per previous steps, but ensure +x
+    true
+fi
 chmod +x "$AAPT"
 
-# Detect CPU Cores & Set Threads
+# CPU Cores
 CPU_CORES=$(grep -c ^processor /proc/cpuinfo 2>/dev/null)
 [ -z "$CPU_CORES" ] && CPU_CORES=4
 THREADS=$CPU_CORES
 [ "$THREADS" -gt 8 ] && THREADS=8
 
-# === 3. Initialize Concurrency (Token Bucket) ===
+# === 3. Token Bucket (Concurrency Control) ===
+# We still keep the token bucket to control CPU load, 
+# but we don't use pipes for status data.
 mkfifo "$PIPE_FILE"
-# Open file descriptor 3 for read/write on the pipe
 exec 3<>"$PIPE_FILE"
+for i in $(seq 1 $THREADS); do echo >&3; done
 
-# Inject tokens
-for i in $(seq 1 $THREADS); do
-    echo >&3
-done
-
-# === 4. Progress Monitor ===
-mkfifo "$STATUS_PIPE"
-echo "" > "$RESULT_FILE" # Clear result file
-
-# Background process to handle status aggregation
+# === 4. Progress Monitor (Filesystem Polling) ===
+# Independent background process, wakes up every second.
 (
     total=0
     current=0
     found=0
     
-    # Wait for total count first
-    read -r total_count < "$STATUS_PIPE"
-    total=$total_count
+    # Wait for Total Count
+    while [ ! -f "$TMP_DIR/total_count" ]; do sleep 0.1; done
+    total=$(cat "$TMP_DIR/total_count")
 
-    while read -r status < "$STATUS_PIPE"; do
-        if [ "$status" = "DONE" ]; then
-             # Final flush
+    while true; do
+        # 1. Check for Done Signal
+        if [ -f "$TMP_DIR/scan_done" ]; then
+            # Final flush
+            current=$total
+            if [ -f "$RESULT_FILE" ]; then
+                found=$(grep -c . "$RESULT_FILE")
+            fi
             echo "{\"total\": $total, \"current\": $current, \"found\": $found}" > "$PROGRESS_FILE.tmp"
             mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
             break
-        elif [ "$status" = "CHECKED" ]; then
-            current=$((current + 1))
-        elif [ "$status" = "FOUND" ]; then
-            current=$((current + 1))
-            found=$((found + 1))
         fi
+
+        # 2. Count Files (Fastest way on Linux for large dirs: ls -f)
+        # ls -f lists directory without sorting. grep -c -v excludes . and ..
+        current=$(ls -f "$TRACKER_DIR" 2>/dev/null | grep -c -v '^\.\.\?$')
         
-        # Throttling: Write only every 5 updates to reduce I/O pressure and avoid pipe deadlock
-        if [ $((current % 5)) -eq 0 ]; then
-            echo "{\"total\": $total, \"current\": $current, \"found\": $found}" > "$PROGRESS_FILE.tmp"
-            mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
+        # 3. Count Results
+        if [ -f "$RESULT_FILE" ]; then
+            found=$(grep -c . "$RESULT_FILE")
+        else
+            found=0
         fi
+
+        # 4. Update JSON
+        echo "{\"total\": $total, \"current\": $current, \"found\": $found}" > "$PROGRESS_FILE.tmp"
+        mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
+        
+        # 5. Sleep to save IO
+        sleep 1
     done
 ) &
-STATUS_PID=$!
-exec 4>"$STATUS_PIPE"
+MONITOR_PID=$!
 
-# === 5. Scan Logic (The Worker Check) ===
+# === 5. Worker Logic ===
 check_app() {
     local apk_path="$1"
     local pkg_name="$2"
-    
-    # [Step 1: Pre-check] Zip structure
-    # Check if any resource folder for API 26+ exists (adaptive icons started roughly there)
-    # unzip -l is fast.
-    if ! unzip -l "$apk_path" 2>/dev/null | grep -q "res/.*-v26"; then
-        return 1 # Fail
-    fi
+    local is_found=0
 
-    # [Step 2: Entry Lookup] Badging
-    local output
-    output=$("$AAPT" dump badging "$apk_path" 2>/dev/null)
-    # Extract icon path
-    local icon_path
-    icon_path=$(echo "$output" | grep "application: label" | sed -n "s/.*icon='\([^']*\)'.*/\1/p")
-    
-    # Must be XML
-    if [[ "$icon_path" != *.xml ]]; then
-        return 1
-    fi
-
-    # [Step 3: Deep Inspection] XML Tree
-    if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i "monochrome"; then
-        echo "$pkg_name" >> "$RESULT_FILE"
-        return 0 # Success
+    # Step 1: Zip Check (Fastest)
+    if unzip -l "$apk_path" 2>/dev/null | grep -q "res/.*-v26"; then
+        # Step 2: Badging (Entry verification)
+        local output=$("$AAPT" dump badging "$apk_path" 2>/dev/null)
+        local icon_path=$(echo "$output" | grep "application: label" | sed -n "s/.*icon='\([^']*\)'.*/\1/p")
+        
+        if [[ "$icon_path" == *.xml ]]; then
+            # Step 3: XML Tree (Deep check)
+            if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i "monochrome"; then
+                echo "$pkg_name" >> "$RESULT_FILE"
+                is_found=1
+            fi
+        fi
     fi
     
-    return 1
+    # Signal Completion via Filesystem
+    # This never blocks!
+    touch "$TRACKER_DIR/$pkg_name"
 }
 
 # === 6. Main Dispatcher ===
-echo "Gathering package list..."
-# Load list into memory variable. Warning: Large lists might consume memory, but usually safe for package list.
+echo "Init list..."
 RAW_LIST=$(pm list packages -f -3)
+
+# Write Total Count for Monitor
 TOTAL_COUNT=$(echo "$RAW_LIST" | grep -c "package:")
+echo "$TOTAL_COUNT" > "$TMP_DIR/total_count"
 
-# Send total to progress monitor
-echo "$TOTAL_COUNT" >&4
-
-# Use for-loop with IFS='newline' to avoid subshell issues with 'wait'
+# Parallel Loop
 IFS=$'\n'
 for line in $RAW_LIST; do
     unset IFS
@@ -142,31 +149,26 @@ for line in $RAW_LIST; do
     temp=${line#package:}
     apk_path=${temp%=*}
     pkg_name=${temp##*=}
-    
-    if [ -z "$apk_path" ]; then continue; fi
+    [ -z "$apk_path" ] && continue
 
-    # Acquire Token
+    # Acquire Token (Block if full)
     read -u 3 token
 
     # Spawn Worker
     (
-        if check_app "$apk_path" "$pkg_name"; then
-             echo "FOUND" >&4
-        else
-             echo "CHECKED" >&4
-        fi
-        
+        check_app "$apk_path" "$pkg_name"
         # Return Token
         echo >&3
     ) &
 done
 
-# Wait for all background jobs to finish
+# Wait for workers
 wait
 
-# Signal DONE
-echo "DONE" >&4
-wait $STATUS_PID
+# Signal Monitor to stop
+touch "$TMP_DIR/scan_done"
+wait $MONITOR_PID
 
-# Final Cleanup (handled by trap too, but good to be explicit)
-rm -f "$LOCK_FILE"
+# Cleanup
+rm -f "$LOCK_FILE" "$PIPE_FILE" "$TMP_DIR/total_count" "$TMP_DIR/scan_done"
+rm -rf "$TRACKER_DIR"
