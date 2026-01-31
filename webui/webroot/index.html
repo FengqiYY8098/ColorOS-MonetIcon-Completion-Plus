@@ -1506,7 +1506,7 @@
 
         let monetApps = [];
 
-        const SCAN_LOG = `${CACHE_ROOT}/scan.log`;
+        // SCAN_LOG removed, using PROGRESS_JSON for status
         let scanTimer = null;
         let isScanning = false;
 
@@ -1536,16 +1536,13 @@
 
                     // Split by any whitespace (space, tab, newline)
                     const tokens = content.split(/\s+/);
-                    let count = 0;
                     tokens.forEach(token => {
                         // Remove potential comments (starting with #)
                         const pkg = token.split('#')[0].trim();
-                        if (pkg && pkg.length > 3) { // Basic sanity check for package name length
+                        if (pkg) { // Basic sanity check for package name length
                             loadedPkgList.add(pkg);
-                            count++;
                         }
                     });
-                    log(`成功加载 ${count} 个配置项`, 'success');
                 } else {
                     log(`读取失败 (Err ${res.errno}): ${res.stderr}`, 'error');
                 }
@@ -1629,6 +1626,8 @@
         function pollScanProgress() {
             if (scanTimer) clearInterval(scanTimer);
 
+            let lastMsg = "";
+
             // Poll every 500ms
             scanTimer = setInterval(async () => {
                 if (!isScanning) {
@@ -1637,36 +1636,55 @@
                 }
 
                 try {
-                    // Check for DONE signal in scan.log
-                    const logRes = await exec(`tail -n 1 "${SCAN_LOG}"`);
-                    if (logRes.errno === 0) {
-                        const line = logRes.stdout.trim();
-                        if (line === "DONE" || line.includes("扫描完成")) {
-                            clearInterval(scanTimer);
-                            isScanning = false;
-                            document.getElementById('scan-progress-wrap').style.display = 'none';
-                            await loadScanResults();
-                            return;
-                        }
-                    }
-
                     // Read progress from JSON file
+                    // We only rely on progress.json now.
                     const jsonRes = await exec(`cat "${PROGRESS_JSON}" 2>/dev/null`);
+
                     if (jsonRes.errno === 0 && jsonRes.stdout.trim()) {
                         try {
                             const progress = JSON.parse(jsonRes.stdout.trim());
-                            const { total, current, found, pkg } = progress;
+                            const { total, current, found, pkg, msg, status } = progress;
 
-                            // Update Bar
+                            // 1. Handle Logging (msg)
+                            if (msg && msg !== lastMsg) {
+                                log(msg);
+                                lastMsg = msg;
+                            }
+
+                            // 2. Update Bar
                             if (total > 0) {
                                 const percent = (current / total) * 100;
                                 document.getElementById('scan-progress-bar').style.width = percent + '%';
                                 document.getElementById('scan-progress-wrap').style.display = 'block';
                             }
 
-                            // Update Text (Show Package Name)
+                            // 3. Update Status Text
                             const fileEl = document.getElementById('scan-file');
-                            if (fileEl) fileEl.innerText = `正在扫描: ${current}/${total} | 已发现: ${found}\n${pkg || ''}`;
+                            if (fileEl && pkg) {
+                                let statusText = `正在扫描: ${current}/${total} | 已发现: ${found}`;
+                                if (status === 'init' || pkg === 'Starting...') {
+                                    statusText = msg || "准备中...";
+                                } else if (status === 'done' || pkg === 'Completed') {
+                                    statusText = "扫描完成";
+                                } else {
+                                    statusText += `\n${pkg}`;
+                                }
+                                fileEl.innerText = statusText;
+                            }
+
+                            // 4. Check for Completion
+                            if (status === 'done') {
+                                clearInterval(scanTimer);
+                                isScanning = false;
+                                document.getElementById('scan-progress-wrap').style.display = 'none';
+
+                                // Clean up progress file as requested
+                                await exec(`rm -f "${PROGRESS_JSON}"`);
+
+                                await loadScanResults();
+                                return;
+                            }
+
                         } catch (parseErr) {
                             // JSON parse error, ignore
                         }
@@ -1921,7 +1939,9 @@
                 }
 
                 // Clean logs
-                await exec(`echo "准备扫描..." > "${SCAN_LOG}"`);
+                // Legacy SCAN_LOG removed. Progress now handled by JSON.
+                // Ensuring no stale progress file
+                await exec(`rm -f "${PROGRESS_JSON}"`);
 
                 // Start background scan (scan_monet)
                 const scanCmd = `nohup sh "${SCRIPT_FILE}" scan_monet > /dev/null 2>&1 &`;

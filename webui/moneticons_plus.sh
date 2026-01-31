@@ -29,82 +29,74 @@ AAPT="$AAPT_DIR/$AAPT_BIN"
 [ -f "$AAPT" ] && chmod +x "$AAPT"
 
 scan_monet() {
-    # Optional Argument: "full" to force full scan (delete result)
-    # But usually UI handles deletion. Logic here checks if file exists for partial.
-    
     SKIP_FILE="$CACHE_ROOT/skip_list.txt"
     RAW_MAP="$CACHE_ROOT/raw_map.txt"
     TARGET_LIST="$CACHE_ROOT/target_list.txt"
     PROGRESS_FILE="$CACHE_ROOT/progress.json"
 
-    # Clean temp files but keep result if it exists (for partial)
+    # Helper to update progress JSON
+    write_js() {
+        # $1=total, $2=current, $3=found, $4=pkg, $5=msg, $6=status
+        echo "{\"total\": $1, \"current\": $2, \"found\": $3, \"pkg\": \"$4\", \"msg\": \"$5\", \"status\": \"$6\"}" > "$PROGRESS_FILE.tmp"
+        mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
+    }
+
+    # Clean legacy/temp files
     rm -f "$PROGRESS_FILE" "$SKIP_FILE" "$RAW_MAP" "$TARGET_LIST"
     
-    echo "正在准备扫描..." > "$SCAN_LOG"
+    # Init
+    write_js 0 0 0 "" "正在准备扫描..." "init"
 
-    # 1. Build Skip List (Results + Blacklist)
+    # 1. Build Skip List
+    # Output to msg directly?
+    write_js 0 0 0 "" "加载已扫描结果..." "init"
+    
     echo -n "" > "$SKIP_FILE"
     if [ -f "$SCAN_RESULT" ]; then
-        echo "加载已扫描结果..." >> "$SCAN_LOG"
-        # Extract only package name (first field) for skipping
         cat "$SCAN_RESULT" | tr -d '\r' | cut -d'|' -f1 | grep -v '^$' >> "$SKIP_FILE" 2>/dev/null
     fi
     if [ -f "$BLACKLIST_FILE" ]; then
-        echo "加载黑名单..." >> "$SCAN_LOG"
+        write_js 0 0 0 "" "加载黑名单..." "init"
         cat "$BLACKLIST_FILE" | tr -d '\r' | grep -v '^$' >> "$SKIP_FILE" 2>/dev/null
     fi
-    # Ensure unique
     sort -u "$SKIP_FILE" -o "$SKIP_FILE"
 
     # 2. Build Raw Map
-    echo "获取应用列表..." >> "$SCAN_LOG"
-    # pm list packages -f -3 (Third party only)
+    write_js 0 0 0 "" "获取应用列表..." "init"
     pm list packages -f -3 | sed 's/^package://' | while IFS= read -r line; do
         pkg_name="${line##*=}"
         apk_path="${line%=*}"
-        # Cleanup
         pkg_name=$(echo "$pkg_name" | tr -d '\r' | tr -d '[:space:]')
-        
         if [ -n "$pkg_name" ] && [ -n "$apk_path" ]; then
             echo "$pkg_name $apk_path"
         fi
     done > "$RAW_MAP"
 
-    # 3. Filter Targets (Raw - Skip)
+    # 3. Filter Targets
     awk 'NR==FNR {skip[$1]=1; next} !($1 in skip) {print $0}' "$SKIP_FILE" "$RAW_MAP" > "$TARGET_LIST"
 
     TOTAL=$(wc -l < "$TARGET_LIST")
     CURRENT=0
     FOUND=0
 
-    echo "DEBUG: Raw=$(wc -l < "$RAW_MAP"), Skip=$(wc -l < "$SKIP_FILE"), Target=$TOTAL" >> "$SCAN_LOG"
-    echo "开始扫描 ($TOTAL 个新应用)..." >> "$SCAN_LOG"
-
-    # Initial Progress
-    echo "{\"total\": $TOTAL, \"current\": 0, \"found\": 0, \"pkg\": \"Starting...\"}" > "$PROGRESS_FILE.tmp"
-    mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
+    write_js "$TOTAL" 0 0 "" "开始扫描 ($TOTAL 个新应用)..." "running"
 
     # 4. Scanning Loop
     while read -r pkg_name apk_path; do
         [ -z "$pkg_name" ] && continue
         CURRENT=$((CURRENT + 1))
 
-        # Update Progress (Throttle could be added if needed, but simple is fine)
-        echo "{\"total\": $TOTAL, \"current\": $CURRENT, \"found\": $FOUND, \"pkg\": \"$pkg_name\"}" > "$PROGRESS_FILE.tmp"
-        mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
+        # Update Progress
+        write_js "$TOTAL" "$CURRENT" "$FOUND" "$pkg_name" "" "running"
 
         # Check with AAPT
-        # 1. Dump badging to find icon path
         output=$("$AAPT" dump badging "$apk_path" 2>/dev/null)
         icon_path=$(echo "$output" | grep "application:" | sed -n "s/.*icon='\([^']*\)'.*/\1/p" | head -n 1)
 
         if [[ "$icon_path" == *.xml ]]; then
-            # 2. Check XML for monochrome/themed_icon
             if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i -E "monochrome|themed_icon"; then
-                # Extract Label
                 label=$("$AAPT" dump badging "$apk_path" 2>/dev/null | grep "application-label:" | head -n 1 | sed "s/.*:'//; s/'.*//")
                 [ -z "$label" ] && label="$pkg_name"
-                
                 echo "${pkg_name}|${label}" >> "$SCAN_RESULT"
                 FOUND=$((FOUND + 1))
             fi
@@ -112,11 +104,7 @@ scan_monet() {
     done < "$TARGET_LIST"
 
     # Final Update
-    echo "{\"total\": $TOTAL, \"current\": $CURRENT, \"found\": $FOUND, \"pkg\": \"Completed\"}" > "$PROGRESS_FILE.tmp"
-    mv "$PROGRESS_FILE.tmp" "$PROGRESS_FILE"
-
-    echo "扫描完成。" >> "$SCAN_LOG"
-    echo "DONE" >> "$SCAN_LOG"
+    write_js "$TOTAL" "$CURRENT" "$FOUND" "Completed" "扫描完成" "done"
     
     # Cleanup
     rm -f "$SKIP_FILE" "$RAW_MAP" "$TARGET_LIST"
