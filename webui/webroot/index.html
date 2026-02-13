@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 
 <head>
-    <!-- ReleaseCode=4-->
+    <!-- ReleaseCode=5-->
     <meta charset="UTF-8">
     <meta name="viewport"
         content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
@@ -341,6 +341,7 @@
             color: var(--md-sys-color-on-surface-variant);
             margin-bottom: 24px;
             line-height: 1.5;
+            word-break: break-all;
         }
 
         .dialog-actions {
@@ -627,6 +628,7 @@
             color: var(--md-sys-color-on-surface-variant);
             margin-bottom: 24px;
             line-height: 1.5;
+            word-break: break-all;
         }
 
         .dialog-buttons {
@@ -950,7 +952,7 @@
                     </svg>
                 </div>
                 <div class="warning-content">
-                    此功能仅限系统和模块版本 503 及以上使用!<br>
+                    此功能仅限系统和模块版本 <span class="code-path">16.0.3</span> 及以上使用!<br>
                     勾选恢复应用自带的莫奈图标，未勾选保留自定义图标。下次更新后生效。<br>
                     可手动修改配置文件: <span class="code-path">/data/adb/modules/ThemedIconCompletion/webroot/pkglist</span>
                 </div>
@@ -1957,37 +1959,8 @@
                 `;
             }
         }
-        function showDialog(title, content, showCancel, onConfirm) {
-            const overlay = document.createElement('div');
-            overlay.className = 'dialog-overlay';
+        // Remove restored functions as they are replaced by selection logic
 
-            const cancelBtn = showCancel ? `
-                <button class="dialog-btn" onclick="this.closest('.dialog-overlay').remove()">
-                    取消
-                </button>
-            ` : '';
-
-            overlay.innerHTML = `
-                <div class="dialog-box">
-                    <h3 class="dialog-title">${title}</h3>
-                    <div class="dialog-content">${content}</div>
-                    <div class="dialog-actions">
-                        ${cancelBtn}
-                        <button class="dialog-btn" id="dialog-confirm-btn">
-                            确定
-                        </button>
-                    </div>
-                </div>
-            `;
-
-            document.body.appendChild(overlay);
-
-            // Bind confirm
-            document.getElementById('dialog-confirm-btn').onclick = () => {
-                overlay.remove();
-                if (onConfirm) onConfirm();
-            };
-        }
 
         function filterAppList(query) {
             const list = document.getElementById('app-list');
@@ -2055,25 +2028,22 @@
             const modal = document.getElementById('manual-add-modal');
             const listContainer = document.getElementById('manual-app-list');
             modal.style.display = 'flex';
-            listContainer.innerHTML = '<div style="text-align:center; padding:20px;">正在加载应用列表...</div>';
+            listContainer.innerHTML = '<div style="text-align:center; padding:20px;"><div class="spinner"></div><br>正在加载应用列表...</div>';
 
             try {
-                // Fetch Apps
-                // 1. Get List via Shell (Using echo $() to flatten output and avoid truncation)
+                // 1. Get package list
                 const res = await exec('echo $(pm list packages -3)');
                 if (res.errno !== 0) throw new Error("无法获取应用列表");
 
                 const raw = res.stdout || "";
-                // Flattened output -> split by whitespace
                 allThirdPartyApps = raw.split(/\s+/)
                     .filter(token => token.startsWith('package:'))
                     .map(token => token.replace('package:', '').trim())
                     .sort();
 
+                // 2. Fetch all labels FIRST, then render
+                await updateManualLabels();
                 renderManualList();
-
-                // Async fetch labels
-                updateManualLabels();
 
             } catch (e) {
                 listContainer.innerHTML = `<div style="color:red; text-align:center;">加载失败: ${e.message}</div>`;
@@ -2191,34 +2161,50 @@
         async function updateManualLabels() {
             if (!window.manualAppLabels) window.manualAppLabels = {};
 
-            const batchSize = 20;
+            const batchSize = 50; // Increased batch size since API is efficient
             for (let i = 0; i < allThirdPartyApps.length; i += batchSize) {
-                // Stop if modal closed? Optional optimization.
+                // Stop if modal closed
                 if (document.getElementById('manual-add-modal').style.display === 'none') break;
 
                 const batch = allThirdPartyApps.slice(i, i + batchSize);
+
+                // 1. Try KSU API (Batch)
+                if (typeof ksu !== 'undefined' && ksu.getPackagesInfo) {
+                    try {
+                        const jsonStr = ksu.getPackagesInfo(JSON.stringify(batch)); // API expects JSON string
+                        const results = JSON.parse(jsonStr); // API returns JSON string
+                        if (Array.isArray(results)) {
+                            results.forEach(info => {
+                                if (info && info.packageName && info.appLabel) {
+                                    window.manualAppLabels[info.packageName] = info.appLabel;
+                                }
+                            });
+                        }
+                    } catch (e) {
+                        console.error("KSU API failed", e);
+                    }
+                }
+
+                // 2. Fallback to $packageManager for missing labels
                 await Promise.all(batch.map(async (pkg) => {
-                    if (window.manualAppLabels[pkg]) return; // Already loaded
+                    if (window.manualAppLabels[pkg]) return;
 
                     let appName = null;
-                    try {
-                        if (typeof $packageManager !== 'undefined') {
+                    if (typeof $packageManager !== 'undefined') {
+                        try {
                             const appInfo = $packageManager.getApplicationInfo(pkg, 0, 0);
-                            if (appInfo) appName = appInfo.getLabel().toString();
-                        } else if (typeof ksu !== 'undefined' && ksu.getPackagesInfo) {
-                            const info = await ksu.getPackagesInfo(pkg);
-                            if (info && info.appLabel) appName = info.appLabel;
-                        }
-                    } catch (e) { }
+                            if (appInfo) {
+                                const label = appInfo.getLabel();
+                                if (label) appName = label.toString();
+                            }
+                        } catch (e) { }
+                    }
 
-                    if (appName) {
+                    if (appName && appName !== pkg) {
                         window.manualAppLabels[pkg] = appName;
-                        // Directly update DOM if exists (for performance, avoid full render)
-                        const safeId = pkg.replace(/\./g, '_');
-                        const el = document.getElementById(`manual-name-${safeId}`);
-                        if (el) el.innerText = appName;
                     }
                 }));
+
                 // Yield
                 await new Promise(r => setTimeout(r, 10));
             }
@@ -2464,11 +2450,11 @@
         }
 
         async function removePath(path) {
-            if (confirm('确定要移除此路径吗？')) {
+            showDialog('移除路径', `确定要移除此路径吗？<br><span style="font-family:monospace; font-size:13px; color:var(--md-sys-color-on-surface-variant);">${path}</span>`, true, async () => {
                 currentPaths.delete(path);
                 await savePaths(true);
                 renderPathList();
-            }
+            });
         }
 
         async function savePaths(silent = false) {

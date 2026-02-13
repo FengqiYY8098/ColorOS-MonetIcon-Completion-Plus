@@ -95,7 +95,7 @@ scan_monet() {
 
         if [[ "$icon_path" == *.xml ]]; then
             if "$AAPT" dump xmltree "$apk_path" --file "$icon_path" 2>/dev/null | grep -q -i -E "monochrome|themed_icon"; then
-                label=$("$AAPT" dump badging "$apk_path" 2>/dev/null | grep "application-label:" | head -n 1 | sed "s/.*:'//; s/'.*//")
+                label=$(echo "$output" | grep "application-label:" | head -n 1 | sed "s/.*:'//; s/'.*//")
                 [ -z "$label" ] && label="$pkg_name"
                 echo "${pkg_name}|${label}" >> "$SCAN_RESULT"
                 FOUND=$((FOUND + 1))
@@ -108,6 +108,24 @@ scan_monet() {
     
     # Cleanup
     rm -f "$SKIP_FILE" "$RAW_MAP" "$TARGET_LIST"
+}
+
+scan_paths() {
+    # Scan known uxicons directories and output path|count per line
+    # These are the standard ColorOS themed icon paths
+    # Note: icon_path config is loaded separately by the WebUI's loadPaths()
+    KNOWN_PATHS="
+        ${MOD_ROOT}/data/oplus/uxicons
+        ${MOD_ROOT}/my_product/media/theme/uxicons/hdpi
+    "
+
+    # Deduplicate and scan each path
+    echo "$KNOWN_PATHS" | tr -d '\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//' | grep -v '^$' | sort -u | while read -r dir; do
+        if [ -d "$dir" ]; then
+            count=$(find "$dir" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | wc -l)
+            echo "${dir}|${count}"
+        fi
+    done
 }
 
 clean_icon() {
@@ -207,6 +225,9 @@ case "$1" in
     "scan_monet")
         scan_monet
         ;;
+    "scan_paths")
+        scan_paths
+        ;;
     "clean_icon")
         clean_icon
         ;;
@@ -214,7 +235,7 @@ case "$1" in
         update "$2"
         ;;
     *)
-        echo "Usage: $0 {scan_monet|clean_icon|update <ver>}"
+        echo "Usage: $0 {scan_monet|scan_paths|clean_icon|update <ver>}"
         exit 1
         ;;
 esac
